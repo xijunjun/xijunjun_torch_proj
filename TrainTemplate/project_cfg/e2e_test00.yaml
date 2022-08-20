@@ -1,0 +1,27 @@
+
+
+
+gpu_ids: [0,]
+save_epoch_freq: 1
+lambda_gan:  0.0
+lambda_vgg:  1.0
+lr: 0.0001
+wd: 0
+inet: 'errnet'
+init_type: 'xavier'
+resume: False
+no_verbose:  False
+icnn_path: ''
+
+unaligned_loss: 'vgg'
+
+gan_type:  'rasgan'
+which_model_D:  'disc_patch'
+
+model: 'errnet_model'
+vgg_layer: 31
+
+batchSize: 1
+serial_batches: True
+nThreads: 8
+isTrain: True
