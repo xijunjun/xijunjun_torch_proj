@@ -14,6 +14,24 @@ from config import cfg as opt
 import argparse,os
 
 
+# opt = TrainOptions().parse()
+
+# cudnn.benchmark = True
+#
+# opt.display_freq = 10
+#
+# if opt.debug:
+#     opt.display_id = 1
+#     opt.display_freq = 20
+#     opt.print_freq = 20
+#     opt.nEpochs = 40
+#     opt.max_dataset_size = 100
+#     opt.no_log = False
+#     opt.nThreads = 0
+#     opt.decay_iter = 0
+#     opt.serial_batches = True
+#     opt.no_flip = True
+
 def mkdirs(paths):
     if isinstance(paths, list) and not isinstance(paths, str):
         for path in paths:
@@ -24,6 +42,7 @@ def mkdir(path):
     if not os.path.exists(path):
         os.makedirs(path)
 
+
 if __name__ == '__main__':
     """Main Loop"""
 
@@ -33,6 +52,7 @@ if __name__ == '__main__':
     syscfg = parser.parse_args()
 
     # print(sys.argv[1])
+
 
     yamlpath= syscfg.yaml_path
     exp_base_root=syscfg.exp_base_root
@@ -49,7 +69,10 @@ if __name__ == '__main__':
     opt.exp_logs_root=exp_logs_root
     opt.exp_tbs_root=exp_tbs_root
 
+
+
     engine = Engine(opt)
+
 
     def set_learning_rate(lr):
         for optimizer in engine.model.optimizers:

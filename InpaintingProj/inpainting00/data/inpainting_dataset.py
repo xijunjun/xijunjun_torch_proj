@@ -1,15 +1,14 @@
 import os.path
 from os.path import join
 from data.image_folder import make_dataset
-from data.transforms import Sobel, to_norm_tensor, to_tensor
+from data.transforms import Sobel, to_norm_tensor, to_tensor, ReflectionSythesis_1, ReflectionSythesis_2
 from PIL import Image
 import random
 import torch
 import math
-import  numpy   as np
+
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as F
-
 
 import util.util as util
 import data.torchdata as torchdata
@@ -41,11 +40,25 @@ class InpaintingDataset(BaseDataset):
 
     def __getitem__(self, index):
         fn = self.fns[index]
+        B = -1
+
+        # print(join(self.datadir, fn))
+
+        # m_img = Image.open(join(self.datadir, fn)).convert('RGB')
 
         m_img=cv2.imread(join(self.datadir, fn))
+
         m_img=cv2.resize(m_img,(512,512))
+
+        # cv2.imshow('m_img',m_img)
+        # key=cv2.waitKey(0)
+
+        M=m_img
         M = to_tensor(m_img)
         B=M
+
+        # data['input'], data['target_t'], data['target_r']
+
         data = {'input': M, 'target_t': B, 'target_r':M,'fn': fn}
         return data
 
