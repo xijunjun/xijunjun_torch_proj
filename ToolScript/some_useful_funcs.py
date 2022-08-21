@@ -28,24 +28,24 @@ def makedir(dirtp):
 def quad_dim1to2(quad):
     return np.reshape(np.array(quad),(4,2))
 
-def limit_img_auto(img):
+def limit_img_auto(imgin):
+    img=np.array(imgin)
     sw=1920*1.0
     sh=1080*1.0
     h,w,c=img.shape
     swhratio=1.0*sw/sh
     whratio=1.0*w/h
+    # 横向的长图
     if whratio>swhratio:
-        th=int(sh)
-        if th>h:
-            return img
-        tw=int(w*(th/h))
-        img=cv2.resize(img,(tw,th))
-    else:
         tw=int(sw)
-        if tw>w:
-            return img
-        th=int(h*(tw/w))
-        img=cv2.resize(img,(tw,th))
+        if tw<w:
+            th=int(h*(tw/w))
+            img=cv2.resize(img,(tw,th))
+    else:
+        th=int(sh)
+        if th<h:
+            tw=int(w*(th/h))
+            img=cv2.resize(img,(tw,th))
     return  img
 
 def file_extension(path):
@@ -108,6 +108,14 @@ def bigger_quad(quad,wratio,hratio):
     quadnew[1::2] += tly
     quadnew=quadnew.astype(np.int)
     return quadnew
+
+def bigger_rct(wratio,hratio,rct):
+    wratio=(wratio-1.0)*0.5
+    hratio=(hratio-1.0)*0.5
+    delta_w=(rct[2])*wratio+0.5
+    delta_h=(rct[3])*hratio+0.5
+    # return limit_rct([int(rct[0]-delta_w),int(rct[1]-delta_h),int(rct[2]+delta_w*2),int(rct[3]+delta_h*2)],imgshape)
+    return [int(rct[0]-delta_w),int(rct[1]-delta_h),int(rct[2]+delta_w*2),int(rct[3]+delta_h*2)]
 
 def get_ims(imgpath):
     imgpathlst=[]
@@ -175,6 +183,28 @@ def get_imkey(impath):
     return os.path.basename(impath).replace('.'+impath.split('.')[-1],'')
 
 
+
+def crop_pad(img,bdrct):
+    h,w,c=img.shape
+
+    extend_tlx = min(0,bdrct[0][0])
+    extend_tly = min(0, bdrct[0][1])
+    extend_brx = max(w,bdrct[1][0])
+    extend_bry = max(h, bdrct[1][1])
+    extendw=extend_brx-extend_tlx
+    extendh = extend_bry - extend_tly
+    bkimg=np.zeros((extendh,extendw,3),img.dtype)
+    # print('cropimg',extend_tlx,extend_tly)
+
+    xshift=0-extend_tlx
+    yshift = 0 - extend_tly
+    bkimg[yshift:yshift+h,xshift:xshift+w]=img
+
+    bdrct[:,0]+=xshift
+    bdrct[:, 1] += yshift
+
+    cropimg=bkimg[bdrct[0][1]:bdrct[1][1],bdrct[0][0]:bdrct[1][0]]
+    return cropimg,xshift,yshift
 
 # ########################################################################################################
 def split_imlist(imlist,numsplit):
