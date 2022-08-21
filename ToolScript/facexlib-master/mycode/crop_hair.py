@@ -148,13 +148,19 @@ def limit_img_auto(imgin):
     return img
 
 
+# def get_crop_param(landpts5):
+#     template_2048=np.array([[863,1147],[1217,1147],[1043,1383],[889,1547],[1193,1547]])
+#
+#     warp_param_face_2048=cv2.estimateAffinePartial2D(landpts5, template_2048, method=cv2.LMEDS)[0]
+#     return warp_param_face_2048
+
 def get_crop_param(landpts5):
     template_2048=np.array([[863,1147],[1217,1147],[1043,1383],[889,1547],[1193,1547]])
 
+    template_2048 +=244
+
     warp_param_face_2048=cv2.estimateAffinePartial2D(landpts5, template_2048, method=cv2.LMEDS)[0]
     return warp_param_face_2048
-
-
 
 
 # def get_mean(land98,indlist):
@@ -184,6 +190,17 @@ def land98to5(land98):
     # print(indlist)
 
 
+def pt_trans(pts,param):
+
+    dst=[]
+    for pt in pts:
+        x = pt[0]*param[0][0]+pt[1]*param[0][1]+param[0][2]
+        y = pt[0] * param[1][0] + pt[1] * param[1][1] + param[1][2]
+        dst.append([x,y])
+
+    return  np.array(dst)
+
+
 if __name__=='__main__':
     # cap = cv2.VideoCapture(0)
     align_net = init_alignment_model('awing_fan')
@@ -194,13 +211,8 @@ if __name__=='__main__':
 
     ims = get_ims(srcroot)
 
-    face_size = 2048
-    face_template = np.array([[192.98138, 239.94708], [318.90277, 240.1936], [256.63416, 314.01935],
-                              [201.26117, 371.41043], [313.08905, 371.15118]])
-    face_template = face_template * (face_size / 512.0)
-
-    resizeratio = 0.25
-
+    # face_size = 2048
+    face_size = 2536
     with torch.no_grad():
         for i, im in enumerate(ims):
             all_face_rcts = []
@@ -225,9 +237,11 @@ if __name__=='__main__':
                 # cv2.circle(frame, land98to5(landmarks), 20, (255, 255, 0), -1, -1)
 
 
-                for pt in landmarks:
-                    cv2.circle(frame, (pt[0], pt[1]), 10, (255, 0, 0), -1, -1)
-                    # cv2.circle(faceimg, (pt[0], pt[1]), 10, (255, 0, 0), -1, -1)
+                # for pt in landmarks:
+                #     cv2.circle(frame, (pt[0], pt[1]), 10, (255, 0, 0), -1, -1)
+                #     # cv2.circle(faceimg, (pt[0], pt[1]), 10, (255, 0, 0), -1, -1)
+
+
 
                 cv2.imshow('faceimg', limit_img_auto(faceimg))
 
@@ -240,6 +254,12 @@ if __name__=='__main__':
 
                 warp_param_face_2048=get_crop_param(land5_from98)
                 facealign = cv2.warpAffine(frame, warp_param_face_2048, (face_size, face_size), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
+
+                land98_in_crop=pt_trans(landmarks,warp_param_face_2048)
+                for pt in land98_in_crop:
+                    pt=np.array(pt,np.int32)
+                    print(pt)
+                    cv2.circle(facealign, (pt[0], pt[1]), 10, (255, 0, 0), -1, -1)
 
                 print(warp_param_face_2048)
 
