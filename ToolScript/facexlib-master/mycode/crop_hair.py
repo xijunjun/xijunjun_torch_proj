@@ -258,7 +258,6 @@ if __name__=='__main__':
                 land98_in_crop=pt_trans(landmarks,warp_param_face_2048)
                 for pt in land98_in_crop:
                     pt=np.array(pt,np.int32)
-                    print(pt)
                     cv2.circle(facealign, (pt[0], pt[1]), 10, (255, 0, 0), -1, -1)
 
                 print(warp_param_face_2048)
