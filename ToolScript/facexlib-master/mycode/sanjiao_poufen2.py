@@ -214,7 +214,7 @@ if __name__=='__main__':
     align_net = init_alignment_model('awing_fan')
     det_net = init_detection_model('retinaface_resnet50', half=False)
 
-    srcroot = '/home/tao/mynas/Dataset/FaceEdit/sumiao/'
+    srcroot = '/home/tao/mynas/Dataset/hairforsr/femalehd/'
     dstroot = '/home/tao/disk1/Dataset/Project/FaceEdit/taobao_sumiao/crop/'
 
     ims = get_ims(srcroot)
@@ -271,7 +271,7 @@ if __name__=='__main__':
                 pts=[]
                 land98_in_crop_int=np.array(land98_in_crop, np.int)
                 for jk in range(0,98):
-                    if jk%4==0:
+                    if jk%2==0:
                         pts.append((land98_in_crop_int[jk][0],land98_in_crop_int[jk][1]))
                 triangles = delaunayFromPoints(pts)
                 poufenimg=drawTriangulation(triangles, addFilenamePrefix("random_", ''), face_size, face_size,10)

@@ -20,6 +20,15 @@ to_tensor = transforms.ToTensor()
 def to_np_image(input):
     return np.array(transforms.ToPILImage()(input))
 
+
+# for i in range(0, 4):
+#     cv2.line(disimg, tuple(oneplate[i % 4]), tuple(oneplate[(i + 1) % 4]), (0, 255, 0), int(2 / global_var[0]))
+
+
+
+
+
+
 def makedir(dirtp):
     if os.path.exists(dirtp):
         return
