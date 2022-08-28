@@ -325,6 +325,23 @@ def simplify_mask(maskin):
     return img
 
 
+def get_crop_rct(matrct):
+    x,y,w,h=tuple(matrct)
+    ctx = x + w / 2
+    cty=y+h/2
+    # left and right
+    deltaw=0.3*w*0.5
+    leftx=ctx-deltaw-w/2
+    rightx=ctx+deltaw+w/2
+
+    #up
+    deltah=0.3
+    upy=cty-h/2-deltah
+
+    croprct=[leftx,upy,rightx,cty+h/2]
+    croprct=np.array(croprct,np.int32)
+    return  croprct
+
 if __name__=='__main__':
     # cap = cv2.VideoCapture(0)
     align_net = init_alignment_model('awing_fan')
@@ -409,10 +426,15 @@ if __name__=='__main__':
                 matbin_sim = simplify_mask(matbin_sim)
 
 
-                crct=cv2.boundingRect(matbin_sim[:,:,0])
-                print(crct)
+                matrct=cv2.boundingRect(matbin_sim[:,:,0])
+                print(matrct)
 
-                cv2.rectangle(matbin_sim, (crct[0], crct[1]), (crct[0]+crct[2], crct[1]+crct[3]), (0, 0, 255), 10)
+                croprct=get_crop_rct(matrct)
+
+
+                cv2.rectangle(matbin_sim, (matrct[0], matrct[1]), (matrct[0]+matrct[2], matrct[1]+matrct[3]), (0, 0, 255), 10)
+                cv2.rectangle(matbin_sim, (croprct[0], croprct[1]), (croprct[2], croprct[3]), (0, 255, 255), 10)
+
                 cv2.imshow('seg_bise', limit_img_auto(np.concatenate([facealign,face_mat_3c, matbin,matbin_sim], axis=1)))
 
 
