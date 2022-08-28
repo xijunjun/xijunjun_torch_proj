@@ -26,7 +26,10 @@ def to_np_image(input):
 
 
 
-
+def image_1to3c(imagein):
+    image3c=np.array(imagein[:,:,None])
+    image3c=image3c.repeat(3,axis=2)
+    return  image3c
 
 
 def makedir(dirtp):
@@ -214,6 +217,15 @@ def crop_pad(img,bdrct):
 
     cropimg=bkimg[bdrct[0][1]:bdrct[1][1],bdrct[0][0]:bdrct[1][0]]
     return cropimg,xshift,yshift
+
+
+def img2bin_uint(imgin):
+    img=np.array(imgin)
+    thres=1
+    img[img<thres]=0
+    img[img>=thres]=255
+    return   img
+
 
 # ########################################################################################################
 def split_imlist(imlist,numsplit):
