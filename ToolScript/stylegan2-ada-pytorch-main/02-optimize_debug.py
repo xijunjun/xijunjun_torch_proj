@@ -19,6 +19,7 @@ import legacy
 import copy
 import io
 import torch.nn.functional as F
+import torch.nn as nn
 
 import torchvision.transforms as transforms
 to_tensor = transforms.ToTensor()
@@ -148,6 +149,9 @@ if __name__ == '__main__':
         # Features for synth images.
         synth_features = vgg16(synth_images, resize_images=False, return_lpips=True)
         dist = (target_features - synth_features).square().sum()
+
+        dist+=nn.L1Loss()(synth_images,target_images)
+
 
         loss = dist
         # Step
