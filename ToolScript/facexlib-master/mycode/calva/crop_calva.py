@@ -325,20 +325,48 @@ def simplify_mask(maskin):
     return img
 
 
+def crop_pad(img,bdrct):
+    h,w,c=img.shape
+
+    extend_tlx = min(0,bdrct[0][0])
+    extend_tly = min(0, bdrct[0][1])
+    extend_brx = max(w,bdrct[1][0])
+    extend_bry = max(h, bdrct[1][1])
+    extendw=extend_brx-extend_tlx
+    extendh = extend_bry - extend_tly
+    bkimg=np.zeros((extendh,extendw,3),img.dtype)+127
+    # print('cropimg',extend_tlx,extend_tly)
+
+    xshift=0-extend_tlx
+    yshift = 0 - extend_tly
+    bkimg[yshift:yshift+h,xshift:xshift+w]=img
+
+    bdrct[:,0]+=xshift
+    bdrct[:, 1] += yshift
+
+    cropimg=bkimg[bdrct[0][1]:bdrct[1][1],bdrct[0][0]:bdrct[1][0]]
+    return cropimg,xshift,yshift
+
 def get_crop_rct(matrct):
     x,y,w,h=tuple(matrct)
-    ctx = x + w / 2
-    cty=y+h/2
+    x2=x+w
+    y2=y+h
+    # ctx = x + w / 2
+    # cty=y+h/2
     # left and right
-    deltaw=0.3*w*0.5
-    leftx=ctx-deltaw-w/2
-    rightx=ctx+deltaw+w/2
+    deltaw=0.1*w*0.5
+    leftx=x-deltaw
+    rightx=x2+deltaw
+    neww=rightx-leftx
 
     #up
-    deltah=0.3
-    upy=cty-h/2-deltah
+    # deltah=0.3*h
+    # upy=cty-h/2-deltah
 
-    croprct=[leftx,upy,rightx,cty+h/2]
+    newh=neww/1536*1280
+    upy=y2-newh
+
+    croprct=[leftx,upy,rightx,y2]
     croprct=np.array(croprct,np.int32)
     return  croprct
 
@@ -350,7 +378,9 @@ if __name__=='__main__':
     bise_net = init_parsing_model(model_name='bisenet')
 
 
-    srcroot = '/home/tao/mynas/Dataset/FaceEdit/sumiao/'
+    # srcroot = '/home/tao/mynas/Dataset/FaceEdit/sumiao/'
+    # srcroot=r'/home/tao/mynas/Dataset/hairforsr/femalehd'
+    srcroot=r'/home/tao/Downloads/image_unsplash'
     dstroot = '/home/tao/disk1/Dataset/Project/FaceEdit/taobao_sumiao/crop/'
 
     ims = get_ims(srcroot)
@@ -437,7 +467,12 @@ if __name__=='__main__':
 
                 cv2.imshow('seg_bise', limit_img_auto(np.concatenate([facealign,face_mat_3c, matbin,matbin_sim], axis=1)))
 
+                cropimg, xshift, yshift=crop_pad(facealign,croprct.reshape(2,2))
 
+
+                h,w,c=cropimg.shape
+                print(cropimg.shape,1536/1280,w/h)
+                cv2.imshow('cropimg',limit_img_auto(cropimg))
 
 
             # landmarks = align_net.get_landmarks(frame)
