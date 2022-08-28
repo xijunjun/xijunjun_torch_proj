@@ -319,7 +319,9 @@ def simplify_mask(maskin):
     contours, h = cv2.findContours(maskin.copy()[:,:,0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours.sort(key=lambda c: cv2.contourArea(c), reverse=True)
 
-    img = cv2.drawContours(maskin.copy(), [contours[0]], -1, (0, 255, 0), 5)
+    # img = cv2.drawContours(maskin.copy(), [contours[0]], -1, (0, 255, 0), 5)
+    img = cv2.drawContours(np.zeros_like(maskin), [contours[0]], -1, (255, 255, 255), -1)
+
     return img
 
 
@@ -396,12 +398,24 @@ if __name__=='__main__':
                 print(warp_param_face_2048)
                 face_mat_3c = image_1to3c(face_mat)
 
-                # cv2.line(face_mat_3c, (0,calva_bottom_y), (face_size,calva_bottom_y), (0, 255, 0), 10)
+
 
                 matbin=img2bin_uint(face_mat_3c)
                 matbin_sim=simplify_mask(matbin)
 
-                cv2.imshow('seg_bise', limit_img_auto(np.concatenate([facealign,face_mat_3c, seg_bise,matbin,matbin_sim], axis=1)))
+                h,w,c=matbin_sim.shape
+                matbin_sim[calva_bottom_y:h,:,:]=0
+                # cv2.line(matbin_sim, (0, calva_bottom_y), (face_size, calva_bottom_y), (0, 255, 0), 10)
+                matbin_sim = simplify_mask(matbin_sim)
+
+
+                crct=cv2.boundingRect(matbin_sim[:,:,0])
+                print(crct)
+
+                cv2.rectangle(matbin_sim, (crct[0], crct[1]), (crct[0]+crct[2], crct[1]+crct[3]), (0, 0, 255), 10)
+                cv2.imshow('seg_bise', limit_img_auto(np.concatenate([facealign,face_mat_3c, matbin,matbin_sim], axis=1)))
+
+
 
 
             # landmarks = align_net.get_landmarks(frame)

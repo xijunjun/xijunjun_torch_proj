@@ -23,7 +23,7 @@ def to_np_image(input):
 
 # for i in range(0, 4):
 #     cv2.line(disimg, tuple(oneplate[i % 4]), tuple(oneplate[(i + 1) % 4]), (0, 255, 0), int(2 / global_var[0]))
-
+# cv2.rectangle(srcimg, (30 *x, 40 * y),(30 * (x+1), 40 * (y+1)), (0, 0, 255), 1)
 
 
 def image_1to3c(imagein):
