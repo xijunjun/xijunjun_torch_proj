@@ -303,7 +303,10 @@ def get_calva_bottom(land98):
     eyeindlist.extend(list(range(68,76)))
     eyeindlist.append(97)
     lands_eye=np.array(land98)[eyeindlist]
-    maxy=np.min(lands_eye[:,1])
+    # maxy=np.min(lands_eye[:,1])
+    maxy = np.max(lands_eye[:, 1])
+
+    maxy=land98[57][1]
     return  maxy
 
 
