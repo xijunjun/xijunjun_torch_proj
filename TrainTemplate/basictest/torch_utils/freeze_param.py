@@ -11,7 +11,7 @@
 
 
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 import torch
 from torch import nn as nn
@@ -93,14 +93,33 @@ def set_opt_param(optimizer, key, value):
         group[key] = value
 
 
+def freeze_bn(m):
+    # freeze bn(running_mean and running_var), because pytorch (requires_grad = False) just freeze bn.weights and bn.bias
+    for i,k in m.named_children():
+        # print(k)
+        if isinstance(k,nn.BatchNorm2d):
+            # print(k.__class__.__name__)
+            k.eval()
+        else:
+            freeze_bn(k)
+
+def freeze_model(model):
+    freeze = ['', ]  # parameter names to freeze (full or partial)
+    if any(freeze):
+        for k, v in model.named_parameters():
+            if any(x in k for x in freeze):
+                print('freezing %s' % k)
+                v.requires_grad = False
+
+
 
 if __name__ == '__main__':
 
     device='cuda:0'
 
-    net = SRVGGNetCompact(3,3,upscale=1).to('cuda')
+    net = SRVGGNetCompact(3,3,upscale=1).to(device)
     net.eval()
-    x = torch.zeros([1, 3,512,512], dtype=torch.float).to('cuda')
+    x = torch.zeros([1, 3,512,512], dtype=torch.float).to(device)
     out=net(x)
 
 
@@ -114,17 +133,19 @@ if __name__ == '__main__':
 
 
     print(len(common_keys))
-    for key in common_keys:
-        if new_check[key].shape==pretrained_dict[key].shape:
-            new_check[key]=pretrained_dict[key]
-        else:
-            print('ignore key:',key)
-
-    net.load_state_dict(new_check)
+    # for key in common_keys:
+    #     if new_check[key].shape==pretrained_dict[key].shape:
+    #         new_check[key]=pretrained_dict[key]
+    #     else:
+    #         print('ignore key:',key)
+    #
+    # net.load_state_dict(new_check)
     # ######################################################
 
-
-
+    for param in net.named_parameters():
+        # if param[0] in need_frozen_list:
+        #     param[1].requires_grad = False
+        print(param[0])
 
 
 
@@ -138,4 +159,4 @@ if __name__ == '__main__':
     # print(type(net))
 
     # with torch.no_grad():
-    #     scope(net, input_size=(3, 1280, 1536),device='cuda')
+    #     scope(net, input_size=(3, 1280, 1536),device=device)
