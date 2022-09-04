@@ -240,7 +240,7 @@ def pred_seg_bise(bise_net,img_input):
     # Colors for all 20 parts
     part_colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 0, 85], [255, 0, 170], [0, 255, 0], [85, 255, 0],
                    [170, 255, 0], [0, 255, 85], [0, 255, 170], [0, 0, 255], [85, 0, 255], [170, 0, 255], [0, 85, 255],
-                   [0, 170, 255], [255, 255, 0], [255, 255, 85], [255, 255, 170], [255, 0, 255], [255, 85, 255],
+                   [0, 170, 255], [255, 255, 0], [255, 255, 85], [255, 255, 170], [255, 0, 255], [255, 85, 255],#19
                    [255, 170, 255], [0, 255, 255], [85, 255, 255], [170, 255, 255]]
     # 0: 'background'
     # attributions = [1 'skin', 2 'l_brow', 3 'r_brow', 4 'l_eye', 5 'r_eye',
@@ -261,6 +261,18 @@ def pred_seg_bise(bise_net,img_input):
     # vis_im = cv2.addWeighted(img, 0.4, vis_parsing_anno_color, 0.6, 0)]
 
     return  vis_parsing_anno_color
+
+
+def get_target_seg(segimgin,color):
+
+    segbin=segimgin==color
+    segbin=np.all(segbin,axis=2,keepdims=True)
+    segbin=(segbin*255).astype(np.uint8)
+
+    # segbin=image_1to3c(segbin)
+    return  segbin
+
+
 
 def get_mat(matnet,imgin):
     # read image
@@ -319,7 +331,7 @@ def get_calva_bottom(land98):
 
 def img2bin_uint(imgin):
     img=np.array(imgin)
-    thres=100
+    thres=200
     img[img<thres]=0
     img[img>=thres]=255
     return   img
@@ -457,10 +469,46 @@ def get_calva_crop_rct(imagein,matimgin,landmarksin):
     return  calva_limit_rct,calva_crop_rct
 
 
-class periodic_list:
-    def __int__(self,listin):
+class Periodic_list(object):
+
+    def __init__(self,listin):
         self.mylist=listin
-        self.numpts=self.mylist.shape
+        self.numpts=self.mylist.shape[0]
+
+    def __getitem__(self, ind):
+        if ind<0:
+            ind+=self.numpts
+        ind = ind % self.numpts
+        return  self.mylist[ind]
+
+
+def  ind_trans(mylist,indlist):
+    numpts = mylist.shape[0]
+    numind=len(indlist)
+    trans_indlist=[]
+    for i,ind in enumerate(indlist):
+        if ind < 0:
+            ind += numpts
+        ind = ind % numpts
+        trans_indlist.append(ind)
+    return  trans_indlist
+
+
+    # # Colors for all 20 parts
+    # part_colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 0, 85], [255, 0, 170], [0, 255, 0], [85, 255, 0],
+    #                [170, 255, 0], [0, 255, 85], [0, 255, 170], [0, 0, 255], [85, 0, 255], [170, 0, 255], [0, 85, 255],
+    #                [0, 170, 255], [255, 255, 0], [255, 255, 85], [255, 255, 170], [255, 0, 255], [255, 85, 255],
+    #                [255, 170, 255], [0, 255, 255], [85, 255, 255], [170, 255, 255]]
+    # # 0: 'background'
+    # # attributions = [1 'skin', 2 'l_brow', 3 'r_brow', 4 'l_eye', 5 'r_eye',
+    # #                 6 'eye_g', 7 'l_ear', 8 'r_ear', 9 'ear_r', 10 'nose',
+    # #                 11 'mouth', 12 'u_lip', 13 'l_lip', 14 'neck', 15 'neck_l',
+    # #                 16 'cloth', 17 'hair', 18 'hat']
+
+part_colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 0, 85], [255, 0, 170], [0, 255, 0], [85, 255, 0],
+               [170, 255, 0], [0, 255, 85], [0, 255, 170], [0, 0, 255], [85, 0, 255], [170, 0, 255], [0, 85, 255],
+               [0, 170, 255], [255, 255, 0], [255, 255, 85], [255, 255, 170], [255, 0, 255], [255, 85, 255],
+               [255, 170, 255], [0, 255, 255], [85, 255, 255], [170, 255, 255]]
 
 
 def get_ctl_pts(calva_cropedin,calva_segin,calva_matin):
@@ -483,7 +531,7 @@ def get_ctl_pts(calva_cropedin,calva_segin,calva_matin):
     cont_ptlist=[]
     for pt in contours[0]:
         cont_ptlist.append(pt[0])
-        print(pt)
+        # print(pt)
 
     for pt in cont_ptlist:
         cv2.circle(calva_croped, tuple(pt), 20, (255, 255, 255), thickness=-1)
@@ -493,27 +541,70 @@ def get_ctl_pts(calva_cropedin,calva_segin,calva_matin):
     cont_ptlist=np.array(cont_ptlist)
 
     numpts = cont_ptlist.shape[0]
-    cont_ptlist=cont_ptlist[::numpts//20]
-    cont_ptlist[-1] = cont_ptlist[0]
+    # cont_ptlist=cont_ptlist[::numpts//20]
+    # cont_ptlist[-1] = cont_ptlist[0]
+
 
     numpts=cont_ptlist.shape[0]
-    csX = CubicSpline(np.arange(numpts), cont_ptlist[:,0], bc_type='periodic')
-    csY = CubicSpline(np.arange(numpts), cont_ptlist[:,1], bc_type='periodic')
+    # csX = CubicSpline(np.arange(numpts), cont_ptlist[:,0], bc_type='periodic')
+    # csY = CubicSpline(np.arange(numpts), cont_ptlist[:,1], bc_type='periodic')
+    # N=numpts
+    # IN=np.linspace(0, N - 1, 1 * N)
+    # curvex=csX(IN)
+    # curvey=csY(IN)
+    # for i in range(0,N):
+    #     cv2.circle(calva_croped, (int(curvex[i]), int(curvey[i])), 10, (255, 0, 255), thickness=-1)
 
-    # for j in range(0,20):
-    #     cv2.circle(calva_croped, (csX(j),csY(j)), 50, (255, 0, 255), thickness=10)
-
-    N=numpts
-    IN=np.linspace(0, N - 1, 1 * N)
-    curvex=csX(IN)
-    curvey=csY(IN)
-
-    for i in range(0,N):
-        cv2.circle(calva_croped, (int(curvex[i]), int(curvey[i])), 10, (255, 0, 255), thickness=-1)
+    # contlist_pd=Periodic_list(listin=cont_ptlist)
+    # for pt in contlist_pd:
+    #     print(pt)
 
 
+
+    cont_input=np.array(cont_ptlist)
+    cont_smo=np.array(cont_ptlist)
+    meannum=400
+    for i in range(0, numpts):
+        indlist=range(i- meannum//2,i+meannum//2)
+        indlist=ind_trans(cont_input, indlist)
+        cont_smo[i][0] = int(cont_input[indlist,0].mean())
+        cont_smo[i][1] = int(cont_input[indlist, 1].mean())
+    contlist_pd=cont_smo
+
+
+    cont_input=np.array(contlist_pd)
+    cont_smo=np.array(cont_ptlist)
+    meannum=400
+    for i in range(0, numpts):
+        indlist=range(i- meannum//2,i+meannum//2)
+        indlist=ind_trans(cont_input, indlist)
+        cont_smo[i][0] = int(cont_input[indlist,0].mean())
+        cont_smo[i][1] = int(cont_input[indlist, 1].mean())
+    contlist_pd=cont_smo
+
+
+    for i in range(0,numpts):
+        cv2.circle(calva_croped, (int(contlist_pd[i][0]), int(contlist_pd[i][1])), 10, (255, 0, 255), thickness=-1)
+        # cv2.imshow('calva_cropedbig', limit_img_auto(calva_croped))
+        # key = cv2.waitKey(1)
+        # if key==27:
+        #     break
+
+
+    # for i,cur_color in enumerate(part_colors):
+    #     hairseg = get_target_seg(calva_seg,cur_color)
+    #     cv2.putText(hairseg , str(i), (400, 400), cv2.FONT_HERSHEY_DUPLEX, 4,(255, 255, 255))
+    #     cv2.imshow('hairseg', limit_img_auto(hairseg))
+    #     cv2.waitKey(0)
+
+
+
+    hairseg = get_target_seg(calva_seg,part_colors[17])
+    cv2.putText(hairseg , str(i), (400, 400), cv2.FONT_HERSHEY_DUPLEX, 4,(255, 255, 255))
+    cv2.imshow('hairseg', limit_img_auto(hairseg))
 
     cv2.imshow('calva_cropedbig',limit_img_auto(calva_croped))
+
 
 
 
