@@ -171,7 +171,9 @@ def get_crop_param(landpts5):
     template_2048 +=244
 
     warp_param_face_2048=cv2.estimateAffinePartial2D(landpts5, template_2048, method=cv2.LMEDS)[0]
-    return warp_param_face_2048
+    warp_param_face_inv=cv2.invertAffineTransform(warp_param_face_2048)
+
+    return warp_param_face_2048,warp_param_face_inv
 
 
 # def get_mean(land98,indlist):
@@ -482,8 +484,10 @@ if __name__=='__main__':
         for j,landmarks in enumerate(landmark_list):
             land5_from98=land98to5(landmarks)
 
-            warp_param_face_2048=get_crop_param(land5_from98)
+            warp_param_face_2048,warp_param_face_inv=get_crop_param(land5_from98)
             facealign = cv2.warpAffine(image_const, warp_param_face_2048, (face_size, face_size), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
+            h,w,c=facealign.shape
+
             face_mat = get_mat(matnet, facealign)
             seg_bise = pred_seg_bise(bise_net, facealign)
 
@@ -500,8 +504,24 @@ if __name__=='__main__':
 
             calva_limit_rct,calva_crop_rct=get_calva_crop_rct(facealign, face_mat_3c, land98_in_crop)
 
-            cv2.rectangle(facealign, (calva_limit_rct[0], calva_limit_rct[1]), (calva_limit_rct[2], calva_limit_rct[3]), (0, 255, 255), 10)
-            cv2.rectangle(facealign, (calva_crop_rct[0], calva_crop_rct[1]), (calva_crop_rct[2], calva_crop_rct[3]), (0, 0, 255), 10)
+            # cv2.rectangle(facealign, (calva_limit_rct[0], calva_limit_rct[1]), (calva_limit_rct[2], calva_limit_rct[3]), (0, 255, 255), 10)
+            # cv2.rectangle(facealign, (calva_crop_rct[0], calva_crop_rct[1]), (calva_crop_rct[2], calva_crop_rct[3]), (0, 0, 255), 10)
+
+            calva_crop_quad=[[calva_crop_rct[0],calva_crop_rct[1]],[calva_crop_rct[2],calva_crop_rct[1]],[calva_crop_rct[2],calva_crop_rct[3]],[calva_crop_rct[0],calva_crop_rct[3]]]
+            # calva_crop_rct_origin=[]
+            calva_quad_inv=pt_trans(list(calva_crop_quad) ,warp_param_face_inv)
+            # for k in range(0, 4):
+            #     calva_quad_inv.append()
+            calva_quad_inv=np.array(calva_quad_inv,np.int32)
+
+            for k in range(0,4):
+                # cv2.line(facealign, tuple(calva_crop_quad[k % 4]), tuple(calva_crop_quad[(k + 1) % 4]), (0, 255, 0), 10)
+                cv2.line(frame, tuple(calva_quad_inv[k % 4]), tuple(calva_quad_inv[(k + 1) % 4]), (0, 255, 0), 10)
+
+
+            calva_dst_quad=np.array([[0,0],[1536,0],[1536,1280],[0,1280]])
+            cava_crop_param = cv2.estimateAffinePartial2D(calva_quad_inv, calva_dst_quad, method=cv2.LMEDS)[0]
+            calva_croped = cv2.warpAffine(image_const, cava_crop_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
 
 
             # cv2.imshow('seg_bise', limit_img_auto(np.concatenate([facealign,face_mat_3c, matbin,matbin_sim], axis=1)))
@@ -518,6 +538,7 @@ if __name__=='__main__':
 
         cv2.imshow("capture", limit_img_auto(frame))
         cv2.imshow("facealign", limit_img_auto(facealign))
+        cv2.imshow('calva_croped',limit_img_auto(calva_croped))
 
         # if cv2.waitKey(10) & 0xff == ord('q'):
         #     break
