@@ -9,6 +9,9 @@ import os
 import numpy as np
 import shutil
 import platform
+import numpy as np
+from scipy.interpolate import CubicSpline
+
 
 from multiprocessing import Process
 import time,numpy as np
@@ -24,6 +27,25 @@ def to_np_image(input):
 # for i in range(0, 4):
 #     cv2.line(disimg, tuple(oneplate[i % 4]), tuple(oneplate[(i + 1) % 4]), (0, 255, 0), int(2 / global_var[0]))
 # cv2.rectangle(srcimg, (30 *x, 40 * y),(30 * (x+1), 40 * (y+1)), (0, 0, 255), 1)
+# contours,h=cv2.findContours(calva_matbin[0].copy(),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+# cv2.circle(img, (dotxyr[0], dotxyr[1]), dotxyr[2], (255, 255, 255), thickness=-1)
+
+
+def cubsine(cont_ptlist):
+    numpts=cont_ptlist.shape[0]
+    csX = CubicSpline(np.arange(numpts), cont_ptlist[:,0], bc_type='periodic')
+    csY = CubicSpline(np.arange(numpts), cont_ptlist[:,1], bc_type='periodic')
+
+    # for j in range(0,20):
+    #     cv2.circle(calva_croped, (csX(j),csY(j)), 50, (255, 0, 255), thickness=10)
+
+    N=numpts
+    IN=np.linspace(0, N - 1, 1 * N)
+    curvex=csX(IN)
+    curvey=csY(IN)
+
+    # for i in range(0,N):
+    #     cv2.circle(calva_croped, (int(curvex[i]), int(curvey[i])), 10, (255, 0, 255), thickness=-1)
 
 
 def image_1to3c(imagein):
