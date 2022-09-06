@@ -511,6 +511,20 @@ part_colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 0, 85], [255, 0, 
                [255, 170, 255], [0, 255, 255], [85, 255, 255], [170, 255, 255]]
 
 
+def smo_the_pts(cont_ptlist,meannum):
+    cont_input=np.array(cont_ptlist)
+    cont_smo=np.array(cont_ptlist)
+    numpts = cont_input.shape[0]
+
+    for i in range(0, numpts):
+        indlist=range(i- meannum//2,i+meannum//2)
+        indlist=ind_trans(cont_input, indlist)
+        cont_smo[i][0] = int(cont_input[indlist,0].mean())
+        cont_smo[i][1] = int(cont_input[indlist, 1].mean())
+    contlist_pd=cont_smo
+    return  contlist_pd
+
+
 def get_ctl_pts(calva_cropedin,calva_segin,calva_matin):
     calva_croped, calva_seg, calva_mat=np.array(calva_cropedin),np.array(calva_segin),np.array(calva_matin)
 
@@ -600,9 +614,9 @@ def get_ctl_pts(calva_cropedin,calva_segin,calva_matin):
 
 
     hairseg = get_target_seg(calva_seg,part_colors[17])
-    cv2.putText(hairseg , str(i), (400, 400), cv2.FONT_HERSHEY_DUPLEX, 4,(255, 255, 255))
-    cv2.imshow('hairseg', limit_img_auto(hairseg))
-
+    # cv2.putText(hairseg , str(i), (400, 400), cv2.FONT_HERSHEY_DUPLEX, 4,(255, 255, 255))
+    # cv2.imshow('hairseg', limit_img_auto(hairseg))
+    #
     cv2.imshow('calva_cropedbig',limit_img_auto(calva_croped))
 
 
@@ -624,10 +638,55 @@ def euclidean(pt1,pt2):
     return  np.linalg.norm(np.array(pt1) - np.array(pt2))
 
 
+def draw_pts(img,ptlist,r,color,thick):
+    for pt in ptlist:
+        # print(pt)
+        cv2.circle(img,tuple(pt),r,color,thick)
+
+def min_dis_ind(pt1,ptlist):
+    dis_list=[]
+    for pt in ptlist:
+        dis_list.append(euclidean(pt,pt1))
+    dis_list=np.array(dis_list)
+    ind=np.argmin(dis_list)
+    return  ind
+
 def get_cont_up_and_down(calva_mat):
     h,w,c=calva_mat.shape
+    calva_mat_new=np.array(calva_mat)
     calva_mat_bin=img2bin_uint(calva_mat)
 
+    contours, _ = cv2.findContours(calva_mat_bin[:,:,0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours.sort(key=lambda c: cv2.contourArea(c), reverse=True)
+
+
+    ptlist=[]
+    for pt in contours[0]:
+        ptlist.append(pt[0])
+    ptlist=smo_the_pts(ptlist,400)
+    ptlist = smo_the_pts(ptlist, 400)
+    ptlist = smo_the_pts(ptlist, 400)
+
+    rct=cv2.boundingRect(calva_mat_bin[:,:,0])
+
+    # print(rct)
+    # exit(0)
+    pt_bl=[rct[0],h]
+    pt_br = [rct[0]+rct[2], h]
+
+    # print([pt_bl,pt_br])
+
+    cornet_lb=[0,h]
+    corner_rb=[w,h]
+    lind=min_dis_ind(cornet_lb, ptlist)
+    rind = min_dis_ind(corner_rb, ptlist)
+
+    draw_pts(calva_mat_new, list([ptlist[lind], ptlist[rind]]), 20, (255, 0, 0), 2)
+
+    draw_pts(calva_mat_new, list([pt_bl,pt_br]), 20, (255, 0, 0), 2)
+
+    draw_pts(calva_mat_new,ptlist,2,(255,0,0),2)
+    cv2.imshow('calva_mat_new',limit_img_auto(calva_mat_new))
 
 
 
@@ -648,8 +707,8 @@ if __name__=='__main__':
     # face_size = 2048
     face_size = 2536
 
-    print(euclidean([0,0], [300,0]))
-    exit(0)
+    # print(euclidean([0,0], [300,0]))
+    # exit(0)
 
 
     for i, im in enumerate(ims):
@@ -719,6 +778,8 @@ if __name__=='__main__':
 
             # get_ctl_pts(small_to_big(calva_croped), small_to_big(calva_seg), small_to_big(calva_mat))
             get_ctl_pts(calva_croped, calva_seg, calva_mat)
+            get_cont_up_and_down(calva_mat)
+
 
 
         cv2.imshow('cat',limit_img_auto(np.concatenate([calva_croped,calva_seg,calva_mat],axis=1)))
@@ -730,9 +791,9 @@ if __name__=='__main__':
 
         # cv2.imwrite(dstroot+os.path.basename(im),facealign)
 
-        cv2.imshow("capture", limit_img_auto(frame))
-        cv2.imshow("facealign", limit_img_auto(facealign))
-        cv2.imshow('calva_croped',limit_img_auto(calva_croped))
+        # cv2.imshow("capture", limit_img_auto(frame))
+        # cv2.imshow("facealign", limit_img_auto(facealign))
+        # cv2.imshow('calva_croped',limit_img_auto(calva_croped))
 
         # if cv2.waitKey(10) & 0xff == ord('q'):
         #     break
