@@ -43,9 +43,7 @@ def get_ims(imgpath):
                 imgpathlst.append(os.path.join(imgpath, dirpath, filename))
     return imgpathlst
 
-
 face_template_512 = [[200, 245], [315, 245], [256, 370]]
-
 
 def crop_face_bypt(src_pts, srcimg):
     srctp = np.array(face_template_512, np.float32)
@@ -53,7 +51,6 @@ def crop_face_bypt(src_pts, srcimg):
     A = cv2.getAffineTransform(dsttp, srctp)
     res = cv2.warpAffine(srcimg, A, (512, 512))
     return res
-
 
 def get_rotate_pt(pts):
     theta = 90 / 180.0 * math.pi
@@ -67,7 +64,6 @@ def get_rotate_pt(pts):
     ptsnew += pts[0]
 
     return ptsnew[1]
-
 
 def crop_face_by2pt(src_pts, srcimg):
     face_template_512_new = np.array(face_template_512, np.float32) / 4.0
@@ -85,7 +81,6 @@ def crop_face_by2pt(src_pts, srcimg):
     # cv2.resize(res,(128,128))
     return res
 
-
 def limit_img_longsize_scale(img, target_size):
     img_ = np.array(img)
     h, w, c = img.shape
@@ -99,14 +94,11 @@ def limit_img_longsize_scale(img, target_size):
         img_ = cv2.resize(img_, (tw, th))
     return img_, scale
 
-
 def rct2rctwh(rct):
     return np.array([rct[0], rct[1], rct[2] - rct[0], rct[3] - rct[1]])
 
-
 def rctwh2rct(rct):
     return np.array([rct[0], rct[1], rct[2] + rct[0], rct[3] + rct[1]])
-
 
 def bigger_rct(wratio, hratio, rctin):
     rct = rct2rctwh(rctin)
@@ -118,7 +110,6 @@ def bigger_rct(wratio, hratio, rctin):
     rct = [rct[0] - delta_w, rct[1] - delta_h, rct[2] + delta_w * 2, rct[3] + delta_h * 2]
     rct = rctwh2rct(rct)
     return rct
-
 
 def crop_pad(img, bdrct):
     h, w, c = img.shape
@@ -142,7 +133,6 @@ def crop_pad(img, bdrct):
     cropimg = bkimg[bdrct[0][1]:bdrct[1][1], bdrct[0][0]:bdrct[1][0]]
     return cropimg, xshift, yshift
 
-
 def limit_img_auto(imgin):
     img = np.array(imgin)
     sw = 1920 * 1.2
@@ -163,7 +153,6 @@ def limit_img_auto(imgin):
             img = cv2.resize(img, (tw, th))
     return img
 
-
 # def get_crop_param(landpts5):
 #     template_2048=np.array([[863,1147],[1217,1147],[1043,1383],[889,1547],[1193,1547]])
 #
@@ -172,17 +161,13 @@ def limit_img_auto(imgin):
 
 def get_crop_param(landpts5):
     template_2048=np.array([[863,1147],[1217,1147],[1043,1383],[889,1547],[1193,1547]])
-
     template_2048 +=244
-
     warp_param_face_2048=cv2.estimateAffinePartial2D(landpts5, template_2048, method=cv2.LMEDS)[0]
     warp_param_face_inv=cv2.invertAffineTransform(warp_param_face_2048)
 
     return warp_param_face_2048,warp_param_face_inv
 
-
 # def get_mean(land98,indlist):
-
 
 def land98to5(land98):
     land98_=np.array(land98)
@@ -203,10 +188,7 @@ def land98to5(land98):
     pts5.append(land98_[82])
 
     return  np.array(pts5,np.int32)
-
-
     # print(indlist)
-
 
 def pt_trans(pts,param):
 
@@ -215,9 +197,7 @@ def pt_trans(pts,param):
         x = pt[0]*param[0][0]+pt[1]*param[0][1]+param[0][2]
         y = pt[0] * param[1][0] + pt[1] * param[1][1] + param[1][2]
         dst.append([x,y])
-
     return  np.array(dst)
-
 
 def image_1to3c(imagein):
     image3c=np.array(imagein[:,:,None])
@@ -262,7 +242,6 @@ def pred_seg_bise(bise_net,img_input):
 
     return  vis_parsing_anno_color
 
-
 def get_target_seg(segimgin,color):
 
     segbin=segimgin==color
@@ -271,8 +250,6 @@ def get_target_seg(segimgin,color):
 
     # segbin=image_1to3c(segbin)
     return  segbin
-
-
 
 def get_mat(matnet,imgin):
     # read image
@@ -314,7 +291,6 @@ def get_mat(matnet,imgin):
     matte = matte[0][0].data.cpu().numpy()
     return (matte * 255).astype('uint8')
 
-
 def get_calva_bottom(land98):
     eyeindlist=[]
     eyeindlist.extend(list(range(60,68)))
@@ -327,7 +303,6 @@ def get_calva_bottom(land98):
 
     maxy=land98[57][1]
     return  maxy
-
 
 def img2bin_uint(imgin):
     img=np.array(imgin)
@@ -345,7 +320,6 @@ def simplify_mask(maskin):
     img = cv2.drawContours(np.zeros_like(maskin), [contours[0]], -1, (255, 255, 255), -1)
 
     return img
-
 
 def crop_pad(img,bdrct):
     h,w,c=img.shape
@@ -380,11 +354,9 @@ def get_crop_rct(matrct):
     leftx=x-deltaw
     rightx=x2+deltaw
     neww=rightx-leftx
-
     #up
     # deltah=0.3*h
     # upy=cty-h/2-deltah
-
     newh=neww/1536*1280
     upy=y2-newh
 
@@ -392,13 +364,11 @@ def get_crop_rct(matrct):
     croprct=np.array(croprct,np.int32)
     return  croprct
 
-
 def get_face_land_rct(det_net,align_net,framein):
     with torch.no_grad():
         frame=np.array(framein)
         img_scale, scale = limit_img_longsize_scale(frame, 512)
         bboxes = det_net.detect_faces(img_scale, 0.97) / scale
-
 
         landmark_list=[]
         bbox_list=[]
@@ -417,7 +387,6 @@ def get_face_land_rct(det_net,align_net,framein):
 
     return bbox_list,landmark_list
 
-
 def get_calva_crop_rct(imagein,matimgin,landmarksin):
     image=imagein.copy()
     matimg=matimgin.copy()
@@ -431,10 +400,8 @@ def get_calva_crop_rct(imagein,matimgin,landmarksin):
     limith=calvah-upgap
     limit_whratio=limitw/limith
 
-
     matbin = img2bin_uint(matimg)
     matbin_sim = simplify_mask(matbin)
-
 
     calva_bottom_y=int(landmarks[54][1])
 
@@ -447,7 +414,6 @@ def get_calva_crop_rct(imagein,matimgin,landmarksin):
     x1=x0+w
     y1=y0+h
     whratio=w/h
-
 
     # calva_limit_rct=matrct
     if whratio>limit_whratio:
@@ -468,7 +434,6 @@ def get_calva_crop_rct(imagein,matimgin,landmarksin):
 
     return  calva_limit_rct,calva_crop_rct
 
-
 class Periodic_list(object):
 
     def __init__(self,listin):
@@ -481,7 +446,6 @@ class Periodic_list(object):
         ind = ind % self.numpts
         return  self.mylist[ind]
 
-
 def  ind_trans(mylist,indlist):
     numpts = mylist.shape[0]
     numind=len(indlist)
@@ -492,7 +456,6 @@ def  ind_trans(mylist,indlist):
         ind = ind % numpts
         trans_indlist.append(ind)
     return  trans_indlist
-
 
     # # Colors for all 20 parts
     # part_colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 0, 85], [255, 0, 170], [0, 255, 0], [85, 255, 0],
@@ -510,7 +473,6 @@ part_colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 0, 85], [255, 0, 
                [0, 170, 255], [255, 255, 0], [255, 255, 85], [255, 255, 170], [255, 0, 255], [255, 85, 255],
                [255, 170, 255], [0, 255, 255], [85, 255, 255], [170, 255, 255]]
 
-
 def smo_the_pts(cont_ptlist,meannum):
     cont_input=np.array(cont_ptlist)
     cont_smo=np.array(cont_ptlist)
@@ -523,7 +485,6 @@ def smo_the_pts(cont_ptlist,meannum):
         cont_smo[i][1] = int(cont_input[indlist, 1].mean())
     contlist_pd=cont_smo
     return  contlist_pd
-
 
 def smo_the_pts_close(cont_ptlist,meannum):
     cont_input=np.array(cont_ptlist)
@@ -538,8 +499,6 @@ def smo_the_pts_close(cont_ptlist,meannum):
     contlist_pd=cont_smo
 
     return  contlist_pd
-
-
 
 def get_ctl_pts(calva_cropedin,calva_segin,calva_matin):
     calva_croped, calva_seg, calva_mat=np.array(calva_cropedin),np.array(calva_segin),np.array(calva_matin)
@@ -565,7 +524,6 @@ def get_ctl_pts(calva_cropedin,calva_segin,calva_matin):
     # cont_ptlist=cont_ptlist[::numpts//20]
     # cont_ptlist[-1] = cont_ptlist[0]
 
-
     numpts=cont_ptlist.shape[0]
     # csX = CubicSpline(np.arange(numpts), cont_ptlist[:,0], bc_type='periodic')
     # csY = CubicSpline(np.arange(numpts), cont_ptlist[:,1], bc_type='periodic')
@@ -579,7 +537,6 @@ def get_ctl_pts(calva_cropedin,calva_segin,calva_matin):
     # contlist_pd=Periodic_list(listin=cont_ptlist)
     # for pt in contlist_pd:
     #     print(pt)
-
 
     contlist_pd=smo_the_pts_close(cont_ptlist,200)
     # contlist_pd = smo_the_pts_close(contlist_pd, 400)
@@ -603,9 +560,6 @@ def get_ctl_pts(calva_cropedin,calva_segin,calva_matin):
     #
     cv2.imshow('calva_cropedbig',limit_img_auto(calva_croped))
 
-
-
-
 def small_to_big(img):
     h,w,c=img.shape
     bkimg=np.zeros((h*2,w*2,3),img.dtype)
@@ -617,10 +571,8 @@ def big_to_small(img):
     w=w//2
     return  img[h//2:h//2+h,w//2:w//2+w].copy()
 
-
 def euclidean(pt1,pt2):
     return  np.linalg.norm(np.array(pt1) - np.array(pt2))
-
 
 def draw_pts(img,ptlist,r,color,thick,wait=0):
     for pt in ptlist:
@@ -672,8 +624,6 @@ def split_cont_by_two_pts(ptlist,pt1,pt2):
 
     return  sublist_up,sublist_down
 
-
-
 def get_cont_up_and_down(calva_mat):
     h,w,c=calva_mat.shape
     calva_mat_new=np.array(calva_mat)
@@ -715,7 +665,6 @@ def get_cont_up_and_down(calva_mat):
     cv2.imshow('calva_mat_new',limit_img_auto(calva_mat_new))
 
 
-
 if __name__=='__main__':
     # cap = cv2.VideoCapture(0)
     align_net = init_alignment_model('awing_fan')
@@ -734,87 +683,77 @@ if __name__=='__main__':
 
     # print(euclidean([0,0], [300,0]))
     # exit(0)
-
     for i, im in enumerate(ims):
         all_face_rcts = []
         all_face_lands = []
         frame = cv2.imread(im)
         image_const=np.array(frame)
 
-
         bbox_list, landmark_list = get_face_land_rct(det_net, align_net, image_const)
 
-
         for j,landmarks in enumerate(landmark_list):
-            land5_from98=land98to5(landmarks)
 
+            ##########裁剪出单张人脸
+            land5_from98=land98to5(landmarks)
             warp_param_face_2048,warp_param_face_inv=get_crop_param(land5_from98)
             facealign = cv2.warpAffine(image_const, warp_param_face_2048, (face_size, face_size), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
             h,w,c=facealign.shape
 
+            ##########获取单张人脸的matting和seg结果
             face_mat = get_mat(matnet, facealign)
             seg_bise = pred_seg_bise(bise_net, facealign)
+            face_mat_3c = image_1to3c(face_mat)
 
-
+            ##########获取单张人脸的关键点
             land98_in_crop=pt_trans(landmarks,warp_param_face_2048)
             for pt in land98_in_crop:
                 pt=np.array(pt,np.int32)
                 cv2.circle(facealign, (pt[0], pt[1]), 10, (255, 0, 0), -1, -1)
 
+            ##########获取颅顶裁剪框
             calva_bottom_y=int(get_calva_bottom(land98_in_crop))
-
-            print(warp_param_face_2048)
-            face_mat_3c = image_1to3c(face_mat)
-
+            # print(warp_param_face_2048)
             calva_limit_rct,calva_crop_rct=get_calva_crop_rct(facealign, face_mat_3c, land98_in_crop)
-
             # cv2.rectangle(facealign, (calva_limit_rct[0], calva_limit_rct[1]), (calva_limit_rct[2], calva_limit_rct[3]), (0, 255, 255), 10)
             # cv2.rectangle(facealign, (calva_crop_rct[0], calva_crop_rct[1]), (calva_crop_rct[2], calva_crop_rct[3]), (0, 0, 255), 10)
-
             calva_crop_quad=[[calva_crop_rct[0],calva_crop_rct[1]],[calva_crop_rct[2],calva_crop_rct[1]],[calva_crop_rct[2],calva_crop_rct[3]],[calva_crop_rct[0],calva_crop_rct[3]]]
-            # calva_crop_rct_origin=[]
             calva_quad_inv=pt_trans(list(calva_crop_quad) ,warp_param_face_inv)
-            # for k in range(0, 4):
-            #     calva_quad_inv.append()
             calva_quad_inv=np.array(calva_quad_inv,np.int32)
 
             for k in range(0,4):
                 # cv2.line(facealign, tuple(calva_crop_quad[k % 4]), tuple(calva_crop_quad[(k + 1) % 4]), (0, 255, 0), 10)
                 cv2.line(frame, tuple(calva_quad_inv[k % 4]), tuple(calva_quad_inv[(k + 1) % 4]), (0, 255, 0), 10)
 
-
             calva_dst_quad=np.array([[0,0],[1536,0],[1536,1280],[0,1280]])
             cava_crop_param = cv2.estimateAffinePartial2D(calva_quad_inv, calva_dst_quad, method=cv2.LMEDS)[0]
             calva_croped = cv2.warpAffine(image_const, cava_crop_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
 
+            #################################
+            calva_in_align_param=cv2.estimateAffinePartial2D(np.array(calva_crop_quad), calva_dst_quad, method=cv2.LMEDS)[0]
+
 
             # calva_mat=cv2.warpAffine(face_mat_3c, cava_crop_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
-
             # cv2.imshow('seg_bise', limit_img_auto(np.concatenate([facealign,face_mat_3c, matbin,matbin_sim], axis=1)))
             # cropimg, xshift, yshift=crop_pad(facealign,croprct.reshape(2,2))
-            # h,w,c=cropimg.shape
-            # print(cropimg.shape,1536/1280,w/h)
-            # cv2.imshow('cropimg',limit_img_auto(cropimg))
 
             ######### warp #################
-            calva_seg=pred_seg_bise(bise_net, calva_croped)
-            calva_mat =image_1to3c(get_mat(matnet,calva_croped))
+            # calva_seg=pred_seg_bise(bise_net, calva_croped)
+            # calva_mat =image_1to3c(get_mat(matnet,calva_croped))
+            calva_seg = cv2.warpAffine(seg_bise, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
+            calva_mat = cv2.warpAffine(face_mat_3c, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
+
+
 
             # get_ctl_pts(small_to_big(calva_croped), small_to_big(calva_seg), small_to_big(calva_mat))
             get_ctl_pts(calva_croped, calva_seg, calva_mat)
             get_cont_up_and_down(calva_mat)
 
-
-
         cv2.imshow('cat',limit_img_auto(np.concatenate([calva_croped,calva_seg,calva_mat],axis=1)))
-
 
 
         # landmarks = align_net.get_landmarks(frame)
         # landmarks = landmarks.astype(np.int32)
-
         # cv2.imwrite(dstroot+os.path.basename(im),facealign)
-
         # cv2.imshow("capture", limit_img_auto(frame))
         # cv2.imshow("facealign", limit_img_auto(facealign))
         # cv2.imshow('calva_croped',limit_img_auto(calva_croped))
