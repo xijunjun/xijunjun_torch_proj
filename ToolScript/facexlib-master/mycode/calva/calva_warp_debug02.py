@@ -137,7 +137,7 @@ def limit_img_auto(imgin):
     img = np.array(imgin)
     sw = 1920 * 1.2
     sh = 1080 * 1.2
-    h, w, c = img.shape
+    h, w = tuple(list(img.shape)[0:2])
     swhratio = 1.0 * sw / sh
     whratio = 1.0 * w / h
     # 横向的长图
@@ -198,6 +198,11 @@ def pt_trans(pts,param):
         y = pt[0] * param[1][0] + pt[1] * param[1][1] + param[1][2]
         dst.append([x,y])
     return  np.array(dst)
+
+def pt_trans_one(pt,param):
+    x = pt[0]*param[0][0]+pt[1]*param[0][1]+param[0][2]
+    y = pt[0] * param[1][0] + pt[1] * param[1][1] + param[1][2]
+    return  np.array([x,y])
 
 def image_1to3c(imagein):
     image3c=np.array(imagein[:,:,None])
@@ -653,7 +658,7 @@ def get_cont_up_and_down(calva_mat):
 
     return list(sublist1),list(sublist2)
 
-# def get_expand_pts(contpts):
+
 
 def half2full(img):
     h,w,c=img.shape
@@ -666,10 +671,55 @@ def get_calva_landmark(align_net,img):
     landmark=0
     fullimg=half2full(img)
     landmark = align_net.get_landmarks(fullimg)
-    cv2.imshow('full',limit_img_auto(fullimg))
+    # cv2.imshow('full',limit_img_auto(fullimg))
 
-    print(landmark )
+    # print(landmark )
     return  landmark
+
+def dot_product_angle(v1, v2):
+    if np.linalg.norm(v1) == 0 or np.linalg.norm(v2) == 0:
+        print("Zero magnitude vector!")
+    else:
+        vector_dot_product = np.dot(v1, v2)
+        arccos = np.arccos(vector_dot_product / (np.linalg.norm(v1) * np.linalg.norm(v2)))
+        angle = np.degrees(arccos)
+        return angle
+    return 0
+
+def to_int32(ptlist):
+    return  np.array(ptlist,np.int32)
+
+
+def get_pt(ptlist,ray):
+    angle_list=[]
+    for pt in ptlist:
+        angle=dot_product_angle(pt-ray[0],ray[1]-ray[0])
+        angle_list.append(angle)
+    minind=np.argmin(angle_list)
+    pt=ptlist[minind]
+    return  pt
+
+
+def get_expand_pts(exp_base_pts,contpts,bottom_pts):
+    numdiv=8
+    pt_base = exp_base_pts[0]
+    leftray = [pt_base,bottom_pts[0]]
+    rightray = [pt_base, bottom_pts[1]]
+    angle_bt=dot_product_angle(bottom_pts[0]-pt_base, bottom_pts[1]-pt_base)
+    angle_left=360-angle_bt
+    delta_angle=angle_left/numdiv
+
+    exp_pts_res=[]
+    for i in range(1,numdiv):
+        rot_mat = cv2.getRotationMatrix2D(tuple(pt_base), -delta_angle*i, 10.5)
+        curpt=np.array(pt_trans_one(bottom_pts[0],rot_mat),np.int32)
+        exp_pt=get_pt(list(contpts), [pt_base,curpt])
+        exp_pts_res.append(exp_pt)
+
+    return  exp_pts_res
+
+def expand_the_pts(exp_base_pts,exp_pts):
+
 
 
 if __name__=='__main__':
@@ -760,10 +810,15 @@ if __name__=='__main__':
             pt_br = [rct[0] + rct[2], ch]
             Calva_bottom_pts = [pt_bl, pt_br]
 
+
+            ##扩张基准点
+            calva_land = get_calva_landmark(align_net, calva_croped)
+            Calva_base_pts=[calva_land[51]]
+
             ####构造扩张点
+            Calva_expand_pts=get_expand_pts(Calva_base_pts, up_cont_pts, Calva_bottom_pts)
 
 
-            calva_land=get_calva_landmark(align_net,calva_croped)
 
 
 
@@ -774,7 +829,11 @@ if __name__=='__main__':
             draw_pts(calva_mat, list(up_cont_pts), 20, (255, 0, 0), 2)
             draw_pts(calva_mat, list(down_cont_pts), 20, (255, 255, 0), 2)
             draw_pts(calva_mat, list(Calva_bottom_pts), 30, (0, 0, 255), 30)
-            draw_pts(calva_mat, list(calva_land), 20, (255, 0, 255), 2)
+            draw_pts(calva_mat, list(Calva_base_pts), 30, (0, 255, 255), 30)
+            draw_pts(calva_croped, list(calva_land), 10, (0, 255, 255), 10)
+            draw_pts(calva_seg, list(Calva_base_pts), 30, (0, 255, 255), 30)
+            draw_pts(calva_mat, list(Calva_expand_pts), 30, (0, 255, 255), 30)
+
 
         cv2.imshow('cat',limit_img_auto(np.concatenate([calva_croped,calva_seg,calva_mat],axis=1)))
 
