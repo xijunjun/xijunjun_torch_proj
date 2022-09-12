@@ -764,7 +764,7 @@ def pts2rct(box):
 def make_big_img(ptslist_list,image):
     ptsall=merge_pts(ptslist_list)
     h,w,c=image.shape
-    ptsall.extend([0,0],[w,h])
+    ptsall.extend([[0,0],[w,h]])
     ptsall_np=np.array(ptsall)
     rct=pts2rct(ptsall_np)
 
@@ -775,6 +775,7 @@ def make_big_img(ptslist_list,image):
     
     ptsall_np+=[offx,offy]
     bigimg=np.zeros((nh,nw,3),dtype=image.dtype)
+    bigimg[offy:offy+h,offx:offx+w]=image.copy()
     draw_pts(bigimg, list(ptsall_np), 10, (0,255, 255), 10)
     cv2.imwrite('2.jpg',bigimg)
 
