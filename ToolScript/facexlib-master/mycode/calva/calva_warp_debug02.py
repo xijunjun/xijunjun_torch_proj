@@ -306,7 +306,7 @@ def get_calva_bottom(land98):
 
 def img2bin_uint(imgin):
     img=np.array(imgin)
-    thres=200
+    thres=100
     img[img<thres]=0
     img[img>=thres]=255
     return   img
@@ -395,7 +395,7 @@ def get_calva_crop_rct(imagein,matimgin,landmarksin):
     calvaw=1536
     calvah=1280
     upgap=180
-    lrgap=40
+    lrgap=60
     limitw=calvaw-lrgap*2
     limith=calvah-upgap
     limit_whratio=limitw/limith
@@ -577,7 +577,7 @@ def euclidean(pt1,pt2):
 def draw_pts(img,ptlist,r,color,thick,wait=0):
     for pt in ptlist:
         # print(pt)
-        cv2.circle(img,tuple(pt),r,color,thick)
+        cv2.circle(img,tuple(np.array(pt,np.int32)),r,color,thick)
         if wait!=0:
             cv2.imshow('calva_mat_new', limit_img_auto(img))
             cv2.waitKey(wait)
@@ -625,6 +625,7 @@ def split_cont_by_two_pts(ptlist,pt1,pt2):
     return  sublist_up,sublist_down
 
 def get_cont_up_and_down(calva_mat):
+
     h,w,c=calva_mat.shape
     calva_mat_new=np.array(calva_mat)
     calva_mat_bin=img2bin_uint(calva_mat)
@@ -632,37 +633,43 @@ def get_cont_up_and_down(calva_mat):
     contours, _ = cv2.findContours(calva_mat_bin[:,:,0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     contours.sort(key=lambda c: cv2.contourArea(c), reverse=True)
 
-
     ptlist=[]
     for pt in contours[0]:
         ptlist.append(pt[0])
-    ptlist=smo_the_pts(ptlist,400)
-    ptlist = smo_the_pts(ptlist, 400)
-    ptlist = smo_the_pts(ptlist, 400)
-
-    rct=cv2.boundingRect(calva_mat_bin[:,:,0])
-
-    # print(rct)
-    # exit(0)
-    pt_bl=[rct[0],h]
-    pt_br = [rct[0]+rct[2], h]
-
-    # print([pt_bl,pt_br])
+    ptlist=smo_the_pts(ptlist,300)
+    ptlist = smo_the_pts(ptlist, 300)
 
     cornet_lb=[0,h]
     corner_rb=[w,h]
     lind=min_dis_ind(cornet_lb, ptlist)
     rind = min_dis_ind(corner_rb, ptlist)
+    sublist1, sublist2 = split_cont_by_two_pts(ptlist, ptlist[lind], ptlist[rind])
 
-    draw_pts(calva_mat_new, list([ptlist[lind], ptlist[rind]]), 20, (255, 0, 0), 2)
-    draw_pts(calva_mat_new, list([pt_bl,pt_br]), 20, (255, 0, 0), 2)
-    draw_pts(calva_mat_new,ptlist,2,(255,0,0),2)
+    # draw_pts(calva_mat_new, list([ptlist[lind], ptlist[rind]]), 20, (255, 0, 0), 2)
+    # draw_pts(calva_mat_new,ptlist,2,(255,0,0),2)
+    # draw_pts(calva_mat_new,list(sublist1),2,(255,0,255),2)
+    # draw_pts(calva_mat_new, list(sublist2), 2, (0, 255, 0), 2)
+    # cv2.imshow('calva_mat_new',limit_img_auto(calva_mat_new))
+
+    return list(sublist1),list(sublist2)
+
+# def get_expand_pts(contpts):
+
+def half2full(img):
+    h,w,c=img.shape
+    imgfull=np.zeros((h+h//2,w,3),dtype=img.dtype)+127
+    imgfull[0:h,0:w]=img.copy()
+    return  imgfull
 
 
-    sublist1, sublist2= split_cont_by_two_pts(ptlist,ptlist[lind], ptlist[rind])
-    draw_pts(calva_mat_new,list(sublist1),2,(255,0,255),2)
-    draw_pts(calva_mat_new, list(sublist2), 2, (0, 255, 0), 2)
-    cv2.imshow('calva_mat_new',limit_img_auto(calva_mat_new))
+def get_calva_landmark(align_net,img):
+    landmark=0
+    fullimg=half2full(img)
+    landmark = align_net.get_landmarks(fullimg)
+    cv2.imshow('full',limit_img_auto(fullimg))
+
+    print(landmark )
+    return  landmark
 
 
 if __name__=='__main__':
@@ -681,8 +688,7 @@ if __name__=='__main__':
     # face_size = 2048
     face_size = 2536
 
-    # print(euclidean([0,0], [300,0]))
-    # exit(0)
+
     for i, im in enumerate(ims):
         all_face_rcts = []
         all_face_lands = []
@@ -716,21 +722,20 @@ if __name__=='__main__':
             calva_limit_rct,calva_crop_rct=get_calva_crop_rct(facealign, face_mat_3c, land98_in_crop)
             # cv2.rectangle(facealign, (calva_limit_rct[0], calva_limit_rct[1]), (calva_limit_rct[2], calva_limit_rct[3]), (0, 255, 255), 10)
             # cv2.rectangle(facealign, (calva_crop_rct[0], calva_crop_rct[1]), (calva_crop_rct[2], calva_crop_rct[3]), (0, 0, 255), 10)
+
+            ##########从大图中裁剪颅顶
             calva_crop_quad=[[calva_crop_rct[0],calva_crop_rct[1]],[calva_crop_rct[2],calva_crop_rct[1]],[calva_crop_rct[2],calva_crop_rct[3]],[calva_crop_rct[0],calva_crop_rct[3]]]
             calva_quad_inv=pt_trans(list(calva_crop_quad) ,warp_param_face_inv)
             calva_quad_inv=np.array(calva_quad_inv,np.int32)
-
             for k in range(0,4):
                 # cv2.line(facealign, tuple(calva_crop_quad[k % 4]), tuple(calva_crop_quad[(k + 1) % 4]), (0, 255, 0), 10)
                 cv2.line(frame, tuple(calva_quad_inv[k % 4]), tuple(calva_quad_inv[(k + 1) % 4]), (0, 255, 0), 10)
-
             calva_dst_quad=np.array([[0,0],[1536,0],[1536,1280],[0,1280]])
             cava_crop_param = cv2.estimateAffinePartial2D(calva_quad_inv, calva_dst_quad, method=cv2.LMEDS)[0]
             calva_croped = cv2.warpAffine(image_const, cava_crop_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
 
-            #################################
+            ################################颅顶在人脸图中的位置
             calva_in_align_param=cv2.estimateAffinePartial2D(np.array(calva_crop_quad), calva_dst_quad, method=cv2.LMEDS)[0]
-
 
             # calva_mat=cv2.warpAffine(face_mat_3c, cava_crop_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             # cv2.imshow('seg_bise', limit_img_auto(np.concatenate([facealign,face_mat_3c, matbin,matbin_sim], axis=1)))
@@ -739,14 +744,37 @@ if __name__=='__main__':
             ######### warp #################
             # calva_seg=pred_seg_bise(bise_net, calva_croped)
             # calva_mat =image_1to3c(get_mat(matnet,calva_croped))
-            calva_seg = cv2.warpAffine(seg_bise, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
-            calva_mat = cv2.warpAffine(face_mat_3c, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
+            calva_seg = cv2.warpAffine(seg_bise, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132),flags=cv2.INTER_NEAREST)
+            calva_mat = cv2.warpAffine(face_mat_3c, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132),flags=cv2.INTER_NEAREST)
 
-
-
+            ##############构造控制点
             # get_ctl_pts(small_to_big(calva_croped), small_to_big(calva_seg), small_to_big(calva_mat))
-            get_ctl_pts(calva_croped, calva_seg, calva_mat)
-            get_cont_up_and_down(calva_mat)
+            # get_ctl_pts(calva_croped, calva_seg, calva_mat)
+            up_cont_pts,down_cont_pts=get_cont_up_and_down(calva_mat)
+
+            ##底部两个关键点
+            calva_mat_bin = img2bin_uint(calva_mat)
+            ch,cw,cc=calva_mat.shape
+            rct = cv2.boundingRect(calva_mat_bin[:, :, 0])
+            pt_bl = [rct[0], ch]
+            pt_br = [rct[0] + rct[2], ch]
+            Calva_bottom_pts = [pt_bl, pt_br]
+
+            ####构造扩张点
+
+
+            calva_land=get_calva_landmark(align_net,calva_croped)
+
+
+
+            print(Calva_bottom_pts)
+
+
+
+            draw_pts(calva_mat, list(up_cont_pts), 20, (255, 0, 0), 2)
+            draw_pts(calva_mat, list(down_cont_pts), 20, (255, 255, 0), 2)
+            draw_pts(calva_mat, list(Calva_bottom_pts), 30, (0, 0, 255), 30)
+            draw_pts(calva_mat, list(calva_land), 20, (255, 0, 255), 2)
 
         cv2.imshow('cat',limit_img_auto(np.concatenate([calva_croped,calva_seg,calva_mat],axis=1)))
 
