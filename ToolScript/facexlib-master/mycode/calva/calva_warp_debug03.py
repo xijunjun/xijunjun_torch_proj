@@ -8,7 +8,7 @@ import os
 import numpy as np
 import shutil
 import platform, math
-
+from delaunay2D import Delaunay2D
 import argparse
 import cv2
 import torch
@@ -718,7 +718,184 @@ def get_expand_pts(exp_base_pts,contpts,bottom_pts):
 
     return  exp_pts_res
 
-# def expand_the_pts(exp_base_pts,exp_pts):
+
+def expand_the_pts(exp_base_pts, exp_pts):
+    base_pt = exp_base_pts[0]
+    exp_pt_result = []
+    exp_ratio=1.2
+    shape_param=[0.5,0.7,0.9,1.0]
+    tp_param=list(shape_param[0:3])
+    tp_param.reverse()
+    shape_param.extend(tp_param)
+    # print(shape_param)
+    for i, ept in enumerate(exp_pts):
+        lenth = euclidean(ept, base_pt)
+        xpt = [lenth, 0]
+        trans_param = cv2.estimateAffinePartial2D(np.array([base_pt, ept]), np.array([[0, 0], xpt]), method=cv2.LMEDS)[0]
+        trans_param_inv = cv2.invertAffineTransform(trans_param)
+        exp_dis=exp_ratio*lenth-lenth
+        xpt = pt_trans_one([lenth+exp_dis * shape_param[i], 0], trans_param_inv)
+        exp_pt_result.append(np.array(xpt, np.int32))
+    return exp_pt_result
+
+
+def merge_pts(ptslist_list):
+    res = []
+    for ptlist in list(ptslist_list):
+        res.extend(ptlist)
+    return list(res)
+
+def make_backgroud_stable_pts(expand_pts,bt_pts,exp_base_pts):
+    base_pt=exp_base_pts[0]
+    back_stable_pts=[]
+    ptsall=merge_pts([expand_pts,bt_pts])
+    stable_pt_list=[]
+    for pt in ptsall:
+        lenth=euclidean(pt,base_pt)
+        xpt=[lenth,0]
+        trans_param=cv2.estimateAffinePartial2D(np.array([base_pt,pt]),np.array([[0,0],xpt]), method=cv2.LMEDS)[0]
+        trans_param_inv=cv2.invertAffineTransform(trans_param)
+        xpt=pt_trans_one([lenth*2,0],trans_param_inv)
+        stable_pt_list.append(np.array(xpt,np.int32))
+    return stable_pt_list
+
+
+def pts2rct(box):
+    tlx = min(box[:,0])
+    tly = min(box[:,1])
+    brx = max(box[:,0])
+    bry = max(box[:,1])
+    return [tlx,tly,brx,bry]
+
+def make_big_img(ptslist_list, image):
+    ptsall = merge_pts(ptslist_list)
+    h, w, c = image.shape
+    ptsall.extend([[0, 0], [w, h]])
+    ptsall_np = np.array(ptsall)
+    rct = pts2rct(ptsall_np)
+
+    offx = max(0, -rct[0])
+    offy = max(0, -rct[1])
+    nw = rct[2] - rct[0]
+    nh = rct[3] - rct[1]
+
+    ptsall_np += [offx, offy]
+    bigimg = np.zeros((nh, nw, 3), dtype=image.dtype)
+    bigimg[offy:offy + h, offx:offx + w] = image.copy()
+    draw_pts(bigimg, list(ptsall_np), 10, (0, 255, 255), 10)
+    return bigimg
+
+
+def vis_delaunay(ptsnp,image):
+    ptsall=list(ptsnp)
+    h, w, c = image.shape
+    ptsall_extend=list(ptsall)
+    ptsall_extend.extend([[0, 0], [w, h]])
+    rct = pts2rct(np.array(ptsall_extend))
+    ptsall_np = np.array(ptsall)
+
+    print('rct:',rct)
+
+    offx = int(max(0, -rct[0]))
+    offy = int(max(0, -rct[1]))
+    nw =int( rct[2] - rct[0])
+    nh =int(rct[3] - rct[1])
+
+    ptsall_np += [offx, offy]
+    bigimg = np.zeros((nh, nw, 3), dtype=image.dtype)
+    bigimg[offy:offy + h, offx:offx + w] = image.copy()
+
+
+    ptsnp=np.array(ptsall_np,np.int32)
+    visimg=np.array(image)
+    dt = Delaunay2D()
+    for pt in ptsnp:
+        dt.addPoint(pt)
+    trires=dt.exportTriangles()
+    for triind in trires:
+        for k in range(0,3):
+            cv2.line(bigimg, tuple(ptsnp[triind[k % 3]]), tuple(ptsnp[triind[(k +1)% 3]]), (0, 255, 0), 10)
+    return bigimg
+
+keylist=[0]
+def show_img_two(img1,img2):
+    flag=0
+    while 1:
+        if flag==0:
+            cv2.imshow('imx',limit_img_auto(np.concatenate([img1,img2],axis=1)))
+            flag=1
+        else:
+            cv2.imshow('imx', limit_img_auto(np.concatenate([img2, img1], axis=1)))
+            flag=0
+        keylist[0]=cv2.waitKey(0)
+        if keylist[0]==13:
+            break
+        if keylist[0]==27:
+            exit(0)
+
+
+
+def warp_the_img(image,pt_src_list,pt_dst_list):
+
+    h, w, c = image.shape
+    ptsall_extend=list(pt_dst_list)
+    ptsall_extend.extend([[0, 0], [w, h]])
+    rct = pts2rct(np.array(ptsall_extend))
+    offx = int(max(0, -rct[0]))
+    offy = int(max(0, -rct[1]))
+    nw =int( rct[2] - rct[0])
+    nh =int(rct[3] - rct[1])
+
+    ptsnp=np.array(pt_src_list,np.int32)
+    visimg=np.array(image)
+    dt = Delaunay2D()
+    for pt in ptsnp:
+        dt.addPoint(pt)
+    trires=dt.exportTriangles()
+
+    pt_src_np = np.array(pt_src_list,np.int32)+[offx, offy]
+    pt_dst_np = np.array(pt_dst_list, np.int32)+[offx, offy]
+
+    bimg_src = np.zeros((nh, nw, 3), dtype=image.dtype)
+    bimg_src[offy:offy + h, offx:offx + w] = image.copy()
+
+    bimg_dst = np.array(bimg_src)
+
+    for triind in trires:
+        triind =list(triind)
+
+        pts_tri_src=pt_src_np[triind]
+        pts_tri_dst = pt_dst_np[triind]
+        if (pts_tri_src!=pts_tri_dst).any():
+
+            ptstri_all=list(pts_tri_src)
+            ptstri_all.extend(list(pts_tri_dst))
+            ptstri_all=np.array(ptstri_all)
+            rct_big=pts2rct(ptstri_all)
+            pw=rct_big[2]-rct_big[0]
+            ph=rct_big[3]-rct_big[1]
+
+            pts_tri_src-=[rct_big[0],rct_big[1]]
+            pts_tri_dst-=[rct_big[0],rct_big[1]]
+
+            patch_src=bimg_src[rct_big[1]:rct_big[3],rct_big[0]:rct_big[2]]
+            patch_dst_ori = bimg_dst[rct_big[1]:rct_big[3], rct_big[0]:rct_big[2]]
+            patch_mask_dst=np.zeros_like(patch_dst_ori )
+            cv2.fillConvexPoly(patch_mask_dst,pts_tri_dst, (1, 1, 1))
+            patch_mask_dst=patch_mask_dst.astype(np.float32)
+
+            warp_param=cv2.getAffineTransform(np.array(pts_tri_src,np.float32),np.array(pts_tri_dst,np.float32))
+            patch_dst=cv2.warpAffine(patch_src,warp_param,(pw,ph))
+
+            patch_dst_fusion=patch_mask_dst*patch_dst+(1-patch_mask_dst)*patch_dst_ori
+            patch_dst_fusion =patch_dst_fusion.astype(np.uint8)
+            bimg_dst[rct_big[1]:rct_big[3],rct_big[0]:rct_big[2]]=patch_dst_fusion.copy()
+
+    warp_result=bimg_dst[offy:offy + h, offx:offx + w].copy()
+    return warp_result
+
+
+
 
 
 
@@ -736,7 +913,7 @@ if __name__=='__main__':
 
     ims = get_ims(srcroot)
     # face_size = 2048
-    face_size = 2536
+    head_size = 2536
 
 
     for i, im in enumerate(ims):
@@ -749,27 +926,29 @@ if __name__=='__main__':
 
         for j,landmarks in enumerate(landmark_list):
 
-            ##########裁剪出单张人脸
+            ##########裁剪出单张人头
             land5_from98=land98to5(landmarks)
-            warp_param_face_2048,warp_param_face_inv=get_crop_param(land5_from98)
-            facealign = cv2.warpAffine(image_const, warp_param_face_2048, (face_size, face_size), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
-            h,w,c=facealign.shape
+            warp_param_head,warp_param_face_inv=get_crop_param(land5_from98)
+            headalign = cv2.warpAffine(image_const, warp_param_head, (head_size, head_size), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
+            h,w,c=headalign.shape
 
-            ##########获取单张人脸的matting和seg结果
-            face_mat = get_mat(matnet, facealign)
-            seg_bise = pred_seg_bise(bise_net, facealign)
-            face_mat_3c = image_1to3c(face_mat)
+            # print('facealign.shape ',facealign.shape)
 
-            ##########获取单张人脸的关键点
-            land98_in_crop=pt_trans(landmarks,warp_param_face_2048)
+            ##########获取单张人头的matting和seg结果
+            head_mat = get_mat(matnet, headalign)
+            head_seg_bise = pred_seg_bise(bise_net, headalign)
+            head_mat_3c = image_1to3c(head_mat)
+
+            ##########获取单张人头的关键点
+            land98_in_crop=pt_trans(landmarks,warp_param_head)
             for pt in land98_in_crop:
                 pt=np.array(pt,np.int32)
-                cv2.circle(facealign, (pt[0], pt[1]), 10, (255, 0, 0), -1, -1)
+                cv2.circle(headalign, (pt[0], pt[1]), 10, (255, 0, 0), -1, -1)
 
             ##########获取颅顶裁剪框
             calva_bottom_y=int(get_calva_bottom(land98_in_crop))
             # print(warp_param_face_2048)
-            calva_limit_rct,calva_crop_rct=get_calva_crop_rct(facealign, face_mat_3c, land98_in_crop)
+            calva_limit_rct,calva_crop_rct=get_calva_crop_rct(headalign, head_mat_3c, land98_in_crop)
             # cv2.rectangle(facealign, (calva_limit_rct[0], calva_limit_rct[1]), (calva_limit_rct[2], calva_limit_rct[3]), (0, 255, 255), 10)
             # cv2.rectangle(facealign, (calva_crop_rct[0], calva_crop_rct[1]), (calva_crop_rct[2], calva_crop_rct[3]), (0, 0, 255), 10)
 
@@ -794,8 +973,8 @@ if __name__=='__main__':
             ######### warp #################
             # calva_seg=pred_seg_bise(bise_net, calva_croped)
             # calva_mat =image_1to3c(get_mat(matnet,calva_croped))
-            calva_seg = cv2.warpAffine(seg_bise, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132),flags=cv2.INTER_NEAREST)
-            calva_mat = cv2.warpAffine(face_mat_3c, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132),flags=cv2.INTER_NEAREST)
+            calva_seg = cv2.warpAffine(head_seg_bise, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132),flags=cv2.INTER_NEAREST)
+            calva_mat = cv2.warpAffine(head_mat_3c, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132),flags=cv2.INTER_NEAREST)
 
             ##############构造控制点
             # get_ctl_pts(small_to_big(calva_croped), small_to_big(calva_seg), small_to_big(calva_mat))
@@ -818,11 +997,22 @@ if __name__=='__main__':
             ####构造扩张点
             Calva_expand_pts=get_expand_pts(Calva_base_pts, up_cont_pts, Calva_bottom_pts)
 
+            Calva_expand_pts_result = expand_the_pts(Calva_base_pts, Calva_expand_pts)
 
-
-
+            Calva_back_stable_pts=make_backgroud_stable_pts(Calva_expand_pts_result,Calva_bottom_pts,Calva_base_pts)
+            bigimg=make_big_img([Calva_back_stable_pts,Calva_expand_pts],calva_croped)
 
             print(Calva_bottom_pts)
+            calva_croped_vis=vis_delaunay(merge_pts([Calva_base_pts,Calva_expand_pts,Calva_bottom_pts,Calva_back_stable_pts]), calva_croped)
+
+
+            pt_src_list=merge_pts([Calva_bottom_pts,Calva_base_pts,Calva_expand_pts,Calva_back_stable_pts])
+            pt_dst_list=merge_pts([Calva_bottom_pts,Calva_base_pts,Calva_expand_pts_result,Calva_back_stable_pts])
+            warp_result=warp_the_img(calva_croped, pt_src_list, pt_dst_list)
+
+
+            cv2.imshow('calva_croped_vis',limit_img_auto(calva_croped_vis))
+            cv2.imshow('warp_result',limit_img_auto(warp_result))
 
 
 
@@ -830,13 +1020,18 @@ if __name__=='__main__':
             draw_pts(calva_mat, list(down_cont_pts), 20, (255, 255, 0), 2)
             draw_pts(calva_mat, list(Calva_bottom_pts), 30, (0, 0, 255), 30)
             draw_pts(calva_mat, list(Calva_base_pts), 30, (0, 255, 255), 30)
-            draw_pts(calva_croped, list(calva_land), 10, (0, 255, 255), 10)
+            # draw_pts(calva_croped, list(calva_land), 10, (0, 255, 255), 10)
             draw_pts(calva_seg, list(Calva_base_pts), 30, (0, 255, 255), 30)
             draw_pts(calva_mat, list(Calva_expand_pts), 30, (0, 255, 255), 30)
+            draw_pts(calva_mat, list(Calva_expand_pts_result), 30, (0, 255, 255), 30)
 
 
+
+
+        cv2.imshow('bimg',limit_img_auto(bigimg))
         cv2.imshow('cat',limit_img_auto(np.concatenate([calva_croped,calva_seg,calva_mat],axis=1)))
 
+        show_img_two(calva_croped, warp_result)
 
         # landmarks = align_net.get_landmarks(frame)
         # landmarks = landmarks.astype(np.int32)
@@ -847,6 +1042,9 @@ if __name__=='__main__':
 
         # if cv2.waitKey(10) & 0xff == ord('q'):
         #     break
-        key = cv2.waitKey(0)
-        if key==27:
-            break
+
+        if keylist[0]==13:
+            continue
+        keylist[0] = cv2.waitKey(0)
+        if keylist[0]==27:
+            exit(0)
