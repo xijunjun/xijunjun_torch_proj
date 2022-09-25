@@ -886,6 +886,9 @@ def warp_the_img(image,pt_src_list,pt_dst_list):
             # cv2.fillConvexPoly(patch_mask_dst,pts_tri_dst, (1, 1, 1))
             # patch_mask_dst=patch_mask_dst.astype(np.float32)
 
+
+            # cv2.fillConvexPoly(patch_src, pts_tri_src, (255, 255, 255))
+
             warp_param=cv2.getAffineTransform(np.array(pts_tri_src,np.float32),np.array(pts_tri_dst,np.float32))
             patch_dst=cv2.warpAffine(patch_src,warp_param,(pw,ph))
 
@@ -893,6 +896,7 @@ def warp_the_img(image,pt_src_list,pt_dst_list):
             cv2.fillConvexPoly(patch_mask_dst,pts_tri_src, (1, 1, 1))
 
             patch_mask_dst = cv2.warpAffine(patch_mask_dst, warp_param, (pw, ph))
+            # cv2.fillConvexPoly(patch_mask_dst, pts_tri_dst, (1, 1, 1))
 
             # patch_mask_dst=cv2.blur(patch_mask_dst,(3,3))
             patch_mask_dst=patch_mask_dst.astype(np.float32)
@@ -901,6 +905,10 @@ def warp_the_img(image,pt_src_list,pt_dst_list):
             patch_dst_fusion=patch_mask_dst*patch_dst+(1-patch_mask_dst)*patch_dst_ori
             patch_dst_fusion =patch_dst_fusion.astype(np.uint8)
             bimg_dst[rct_big[1]:rct_big[3],rct_big[0]:rct_big[2]]=patch_dst_fusion.copy()
+
+            # cv2.imshow('bimg_dst',limit_img_auto(bimg_dst))
+            # key=cv2.waitKey(300)
+
 
     warp_result=bimg_dst[offy:offy + h, offx:offx + w].copy()
     return warp_result
@@ -1072,7 +1080,7 @@ if __name__=='__main__':
             bigimg=make_big_img([Calva_back_stable_pts,Calva_expand_pts],calva_croped)
 
             print(Calva_bottom_pts)
-            calva_croped_vis=vis_delaunay(merge_pts([Calva_base_pts,Calva_expand_pts,Calva_bottom_pts,Calva_back_stable_pts]), calva_croped)
+            calva_croped_vis=vis_delaunay(merge_pts([Calva_base_pts,Calva_expand_pts,Calva_bottom_pts,Calva_back_stable_pts,Calva_etou_pts]), calva_croped)
 
 
             pt_src_list=merge_pts([Calva_bottom_pts,Calva_base_pts,Calva_expand_pts,Calva_back_stable_pts,Calva_etou_pts])
