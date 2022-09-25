@@ -629,7 +629,7 @@ def split_cont_by_two_pts(ptlist,pt1,pt2):
 
     return  sublist_up,sublist_down
 
-def get_cont_up_and_down(calva_mat):
+def get_cont_up_and_down(calva_mat,meank=300):
 
     h,w,c=calva_mat.shape
     calva_mat_new=np.array(calva_mat)
@@ -641,8 +641,8 @@ def get_cont_up_and_down(calva_mat):
     ptlist=[]
     for pt in contours[0]:
         ptlist.append(pt[0])
-    ptlist=smo_the_pts(ptlist,300)
-    ptlist = smo_the_pts(ptlist, 300)
+    ptlist=smo_the_pts(ptlist,meank)
+    ptlist = smo_the_pts(ptlist, meank)
 
     cornet_lb=[0,h]
     corner_rb=[w,h]
@@ -722,8 +722,8 @@ def get_expand_pts(exp_base_pts,contpts,bottom_pts):
 def expand_the_pts(exp_base_pts, exp_pts):
     base_pt = exp_base_pts[0]
     exp_pt_result = []
-    exp_ratio=1.2
-    shape_param=[0.5,0.7,0.9,1.0]
+    exp_ratio=1.15
+    shape_param=[0.3,0.7,0.9,1.0]
     tp_param=list(shape_param[0:3])
     tp_param.reverse()
     shape_param.extend(tp_param)
@@ -834,6 +834,8 @@ def show_img_two(img1,img2):
             exit(0)
 
 
+# def get_hair():
+
 
 def warp_the_img(image,pt_src_list,pt_dst_list):
 
@@ -880,12 +882,21 @@ def warp_the_img(image,pt_src_list,pt_dst_list):
 
             patch_src=bimg_src[rct_big[1]:rct_big[3],rct_big[0]:rct_big[2]]
             patch_dst_ori = bimg_dst[rct_big[1]:rct_big[3], rct_big[0]:rct_big[2]]
-            patch_mask_dst=np.zeros_like(patch_dst_ori )
-            cv2.fillConvexPoly(patch_mask_dst,pts_tri_dst, (1, 1, 1))
-            patch_mask_dst=patch_mask_dst.astype(np.float32)
+            # patch_mask_dst=np.zeros_like(patch_dst_ori )
+            # cv2.fillConvexPoly(patch_mask_dst,pts_tri_dst, (1, 1, 1))
+            # patch_mask_dst=patch_mask_dst.astype(np.float32)
 
             warp_param=cv2.getAffineTransform(np.array(pts_tri_src,np.float32),np.array(pts_tri_dst,np.float32))
             patch_dst=cv2.warpAffine(patch_src,warp_param,(pw,ph))
+
+            patch_mask_dst=np.zeros_like(patch_src )
+            cv2.fillConvexPoly(patch_mask_dst,pts_tri_src, (1, 1, 1))
+
+            patch_mask_dst = cv2.warpAffine(patch_mask_dst, warp_param, (pw, ph))
+
+            # patch_mask_dst=cv2.blur(patch_mask_dst,(3,3))
+            patch_mask_dst=patch_mask_dst.astype(np.float32)
+
 
             patch_dst_fusion=patch_mask_dst*patch_dst+(1-patch_mask_dst)*patch_dst_ori
             patch_dst_fusion =patch_dst_fusion.astype(np.uint8)
@@ -896,7 +907,19 @@ def warp_the_img(image,pt_src_list,pt_dst_list):
 
 
 
+def get_landmask_mask(image,land):
+    land=np.array(land,np.int32)
+    # indlist=list(land[0:33])
+    # indlist.extend(list(land[[46,45,44,43,42,37,36,35,34,33]]))
 
+    indlist = list([0,10,22,32,44,35])
+
+    landlist=land[indlist]
+    landmask=np.zeros_like(image)
+
+    cv2.fillConvexPoly(landmask, np.array(landlist), (255, 255, 255))
+
+    return landmask
 
 
 if __name__=='__main__':
@@ -945,6 +968,8 @@ if __name__=='__main__':
                 pt=np.array(pt,np.int32)
                 cv2.circle(headalign, (pt[0], pt[1]), 10, (255, 0, 0), -1, -1)
 
+            headlandmask = get_landmask_mask(headalign, land98_in_crop)
+
             ##########获取颅顶裁剪框
             calva_bottom_y=int(get_calva_bottom(land98_in_crop))
             # print(warp_param_face_2048)
@@ -975,6 +1000,9 @@ if __name__=='__main__':
             # calva_mat =image_1to3c(get_mat(matnet,calva_croped))
             calva_seg = cv2.warpAffine(head_seg_bise, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132),flags=cv2.INTER_NEAREST)
             calva_mat = cv2.warpAffine(head_mat_3c, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132),flags=cv2.INTER_NEAREST)
+            calvalandmask=cv2.warpAffine(headlandmask, calva_in_align_param, (1536, 1280), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
+
+
 
             ##############构造控制点
             # get_ctl_pts(small_to_big(calva_croped), small_to_big(calva_seg), small_to_big(calva_mat))
@@ -999,6 +1027,47 @@ if __name__=='__main__':
 
             Calva_expand_pts_result = expand_the_pts(Calva_base_pts, Calva_expand_pts)
 
+
+            hairmask=get_target_seg(calva_seg,part_colors[17])
+            headmask=255-get_target_seg(calva_seg,[255,255,255])
+            facemask=headmask-hairmask
+            facemask=image_1to3c(facemask[:,:,0])
+            print(facemask.shape,calvalandmask.shape)
+
+            # landmask = get_landmask_mask(calva_croped, land98_in_crop)
+            # facemask=np.clip(facemask+calvalandmask,0,255)
+            facemask[calvalandmask>0]=255
+
+            # facemask_forell=
+            facemask_upflip = cv2.flip(facemask, 0)
+            facemask_forell=np.concatenate([facemask,facemask_upflip],axis=0)
+
+            contours, h = cv2.findContours(facemask_forell[:, :, 0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours.sort(key=lambda c: cv2.contourArea(c), reverse=True)
+            minEllipse = cv2.fitEllipse(contours[0])
+            cv2.ellipse(facemask_forell, minEllipse, (255, 255, 255), -1)
+            facemask_adde=facemask_forell[0:1280,0:1536]
+            facemask_adde=cv2.dilate(facemask_adde,(19,19),iterations=4)
+
+            facemask_up_cont_pts, facemask_down_cont_pts = get_cont_up_and_down(facemask_adde,meank=3)
+            Calva_etou_pts = get_expand_pts(Calva_base_pts, facemask_up_cont_pts, Calva_bottom_pts)
+
+            draw_pts(facemask_adde, list(Calva_etou_pts), 20, (255, 0, 0), 2)
+
+            # cv2.imshow('facemask_forell', limit_img_auto(facemask_forell))
+            cv2.imshow('facemask_adde',limit_img_auto(facemask_adde))
+
+
+
+
+            cv2.imshow('facemask',limit_img_auto(facemask))
+            cv2.imshow('landmask',limit_img_auto(calvalandmask))
+            cv2.imshow('headalign',limit_img_auto(headalign))
+            print(headalign.shape)
+
+
+
+
             Calva_back_stable_pts=make_backgroud_stable_pts(Calva_expand_pts_result,Calva_bottom_pts,Calva_base_pts)
             bigimg=make_big_img([Calva_back_stable_pts,Calva_expand_pts],calva_croped)
 
@@ -1006,13 +1075,14 @@ if __name__=='__main__':
             calva_croped_vis=vis_delaunay(merge_pts([Calva_base_pts,Calva_expand_pts,Calva_bottom_pts,Calva_back_stable_pts]), calva_croped)
 
 
-            pt_src_list=merge_pts([Calva_bottom_pts,Calva_base_pts,Calva_expand_pts,Calva_back_stable_pts])
-            pt_dst_list=merge_pts([Calva_bottom_pts,Calva_base_pts,Calva_expand_pts_result,Calva_back_stable_pts])
+            pt_src_list=merge_pts([Calva_bottom_pts,Calva_base_pts,Calva_expand_pts,Calva_back_stable_pts,Calva_etou_pts])
+            pt_dst_list=merge_pts([Calva_bottom_pts,Calva_base_pts,Calva_expand_pts_result,Calva_back_stable_pts,Calva_etou_pts])
             warp_result=warp_the_img(calva_croped, pt_src_list, pt_dst_list)
 
 
             cv2.imshow('calva_croped_vis',limit_img_auto(calva_croped_vis))
             cv2.imshow('warp_result',limit_img_auto(warp_result))
+
 
 
 
