@@ -630,6 +630,14 @@ def min_dis_ind(pt1,ptlist):
     ind=np.argmin(dis_list)
     return  ind
 
+def min_disx_ind(pt1,ptlist):
+    dis_list=[]
+    for pt in ptlist:
+        dis_list.append(abs(pt[0]-pt1[0]))
+    dis_list=np.array(dis_list)
+    ind=np.argmin(dis_list)
+    return  ind
+
 def split_cont_by_two_pts(ptlist,pt1,pt2):
     ptlist_np=np.array(ptlist)
     lind=np.where(np.all(ptlist_np==pt1,axis=1))[0][0]
@@ -667,8 +675,25 @@ def split_cont_by_two_pts(ptlist,pt1,pt2):
 def get_cont_up_and_down(calva_mat,meank=300):
 
     h,w,c=calva_mat.shape
-    calva_mat_new=np.array(calva_mat)
-    calva_mat_bin=img2bin_uint(calva_mat)
+    # calva_mat_new=np.array(calva_mat)
+    # calva_mat_bin=img2bin_uint(calva_mat)
+    calva_mat_bin = np.array(calva_mat)
+
+    bottom_mat=np.array(calva_mat_bin)
+    # bottom_mat[h-10:h,:,:]=0
+    bottom_mat[0:h - 10, :, :] = 0
+    if bottom_mat[:,:,0].sum()<100:
+        return None,None
+
+    contoursbt, _ = cv2.findContours(bottom_mat[:,:,0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contoursbt.sort(key=lambda c: cv2.contourArea(c), reverse=True)
+    ptlistbt=[]
+    for pt in contoursbt[0]:
+        ptlistbt.append(pt[0])
+
+
+
+
 
     contours, _ = cv2.findContours(calva_mat_bin[:,:,0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     contours.sort(key=lambda c: cv2.contourArea(c), reverse=True)
@@ -679,10 +704,32 @@ def get_cont_up_and_down(calva_mat,meank=300):
     ptlist=smo_the_pts(ptlist,meank)
     ptlist = smo_the_pts(ptlist, meank)
 
-    cornet_lb=[0,h]
-    corner_rb=[w,h]
+    # ##########################
+    ch, cw, cc = calva_mat.shape
+    rct = cv2.boundingRect(calva_mat_bin[:, :, 0])
+    pt_bl = [rct[0], ch]
+    pt_br = [rct[0] + rct[2], ch]
+    cornet_lb=[rct[0],h]
+    corner_rb=[rct[0] + rct[2],h]
+
+    cornet_lb=ptlistbt[min_dis_ind(cornet_lb, ptlistbt)]
+    corner_rb = ptlistbt[min_dis_ind(corner_rb, ptlistbt)]
+
+    # cornet_lb=[0,h]
+    # corner_rb=[w,h]
+
+    draw_pts(bottom_mat,list([cornet_lb,corner_rb]),10,(255,0,0),10)
+
+
+
     lind=min_dis_ind(cornet_lb, ptlist)
     rind = min_dis_ind(corner_rb, ptlist)
+
+
+    draw_pts(bottom_mat, list([cornet_lb, corner_rb]), 10, (255, 0, 0), 10)
+    draw_pts(bottom_mat, list([ptlist[lind], ptlist[rind]]), 20, (0, 255, 0), 3)
+    cv2.imshow('bottom_mat', limit_img_auto(bottom_mat))
+
     sublist1, sublist2 = split_cont_by_two_pts(ptlist, ptlist[lind], ptlist[rind])
 
     # draw_pts(calva_mat_new, list([ptlist[lind], ptlist[rind]]), 20, (255, 0, 0), 2)
@@ -752,6 +799,76 @@ def get_expand_pts(exp_base_pts,contpts,bottom_pts):
         exp_pts_res.append(exp_pt)
 
     return  exp_pts_res
+
+
+
+def get_expand_pts_divy(contpts,halfhead_mat_3c):
+    h,w,c=halfhead_mat_3c.shape
+
+    numdiv=3
+    contpts_np=np.array(contpts,np.int32)
+    numcnt=len(contpts)
+    ind_maxy=np.argmin(contpts_np[:,1])
+    left_cont_np=contpts_np[0:ind_maxy]
+    right_cont_np = contpts_np[ind_maxy:numcnt]
+    halfhead_topy=contpts_np[ind_maxy][1]
+    halfhead_height=h-halfhead_topy
+    dgap=halfhead_height/(numdiv+1)
+
+    expand_ptlist=[]
+    ylist=[]
+    for i in range(0,numdiv):
+        ylist.append(halfhead_topy+dgap*(i+1))
+
+    for i in range(0, numdiv):
+        leftysub=left_cont_np[:,1]-ylist[i]
+        leftysub=np.abs(leftysub)
+        tplind = np.argmin(leftysub)
+        expand_ptlist.append(left_cont_np[tplind])
+    expand_ptlist.reverse()
+    expand_ptlist.append(contpts_np[ind_maxy])
+
+    for i in range(0, numdiv):
+        rightysub=right_cont_np[:,1]-ylist[i]
+        rightysub=np.abs(rightysub)
+        tprind = np.argmin(rightysub)
+        expand_ptlist.append(right_cont_np[tprind])
+
+    return  expand_ptlist
+
+
+
+def get_expand_pts_divd(contpts,halfhead_mat_3c):
+    h,w,c=halfhead_mat_3c.shape
+
+    numdiv=15
+    contpts_np=np.array(contpts,np.int32)
+    numcnt=len(contpts)
+
+    ind_gap=int(numcnt/numdiv)
+
+    expand_ptlist=contpts_np[::ind_gap]
+
+    return  list(expand_ptlist)
+
+def get_portrait_extland(contpts,halfhead_mat_3c):
+    h,w,c=halfhead_mat_3c.shape
+
+    numpts=20
+    numdiv=numpts-1
+    contpts_np=np.array(contpts,np.int32)
+    numcnt=len(contpts)
+
+    ind_gap=int(numcnt/numdiv)
+    # expand_ptlist=contpts_np[::ind_gap]
+    expand_ptlist=[]
+    expand_ptlist.append(contpts_np[0])
+
+    for i in range(0,numpts-2):
+        expand_ptlist.append(contpts_np[(i+1)*ind_gap])
+    expand_ptlist.append(contpts_np[-1])
+
+    return  list(expand_ptlist)
 
 
 def expand_the_pts(exp_base_pts, exp_pts):
@@ -977,7 +1094,11 @@ if __name__=='__main__':
     srcroot=r'/home/tao/Downloads/image_unsplash'
     dstroot = '/home/tao/disk1/Dataset/Project/FaceEdit/taobao_sumiao/crop/'
 
+    dstroot=r'/home/tao/mynas/Dataset/FaceEdit/image_unsplash_dst'
+
     # srcroot='/home/tao/mynas/Dataset/FaceEdit/sumiao'
+
+
 
     ims = get_ims(srcroot)
     # face_size = 2048
@@ -1046,12 +1167,27 @@ if __name__=='__main__':
             param_halfhead_inori_inv=cv2.invertAffineTransform(param_halfhead_inori)
             landmark_in_half=pt_trans(landmarks,param_halfhead_inori)
 
+            calva_mat_bin = img2bin_uint(halfhead_mat_3c)
+
             ##############构造控制点
             # get_ctl_pts(small_to_big(calva_croped), small_to_big(calva_seg), small_to_big(calva_mat))
             # get_ctl_pts(calva_croped, calva_seg, calva_mat)
-            up_cont_pts,down_cont_pts=get_cont_up_and_down(halfhead_mat_3c)
+
+
+
+            calva_mat_bin=cv2.erode(calva_mat_bin ,kernel=np.ones((19,19),np.uint8),iterations=2)
+            calva_mat_bin = cv2.dilate(calva_mat_bin, kernel=np.ones((19, 19), np.uint8), iterations=2)
+
+            calva_mat_bin = cv2.dilate(calva_mat_bin, kernel=np.ones((9, 9), np.uint8), iterations=2)
+            calva_mat_bin=cv2.erode(calva_mat_bin ,kernel=np.ones((9,9),np.uint8),iterations=2)
+
+
+            cv2.imshow('calva_mat_bin',limit_img_auto(calva_mat_bin))
+
+            up_cont_pts,down_cont_pts=get_cont_up_and_down(calva_mat_bin,3)
             ##底部两个关键点
-            calva_mat_bin = img2bin_uint(halfhead_mat_3c)
+
+
             ch,cw,cc=halfhead_mat_3c.shape
             rct = cv2.boundingRect(calva_mat_bin[:, :, 0])
             pt_bl = [rct[0], ch]
@@ -1066,6 +1202,12 @@ if __name__=='__main__':
             Calva_expand_pts_result = expand_the_pts(Calva_base_pts, Calva_expand_pts)
 
 
+            # Calva_top_pts=get_expand_pts_divy(up_cont_pts,halfhead_mat_3c)
+            # Calva_top_pts=get_expand_pts_divd(up_cont_pts, halfhead_mat_3c)
+            Calva_top_pts=get_portrait_extland(up_cont_pts, halfhead_mat_3c)
+
+            print('Calva_top_pts:',len(Calva_top_pts))
+
             # draw_pts(halfhead_mat_3c, list(landmark_in_half), 20, (255, 0, 0), 2)
             # draw_pts(headalign_vis, list(land98_in_crop), 20, (255, 0, 0), 2)
             # print(halfhead_crop_rct)
@@ -1074,7 +1216,22 @@ if __name__=='__main__':
             #     cv2.line(frame_vis,tuple(halfhead_quad_inv[j%4]),tuple(halfhead_quad_inv[(j+1)%4]), (0, 0, 255), 6)
             # draw_pts(frame_vis, list(halfhead_quad_inv), 20, (255, 0, 0), 2)
             draw_pts(halfheadalign, list(merge_pts([Calva_bottom_pts,Calva_base_pts,Calva_expand_pts])), 20, (0, 0,255), 2)
+            draw_pts(halfheadalign, list(Calva_top_pts), 10, (0, 255, 0), 5)
 
+
+
+
+            halfhairmask=get_target_seg(halfhead_seg_bise,part_colors[17])
+            halfheadmask=255-get_target_seg(halfhead_seg_bise,[255,255,255])
+            facemask=halfheadmask-halfhairmask
+            facemask=image_1to3c(facemask[:,:,0])
+            etou_up_cont_pts, etou_down_cont_pts = get_cont_up_and_down(facemask, 3)
+            if etou_up_cont_pts is None:
+                continue
+            Calva_etoutop_pts = get_portrait_extland(etou_up_cont_pts, facemask)
+            draw_pts(halfheadalign, list(Calva_etoutop_pts), 10, (0, 255, 255), 5)
+
+            cv2.imwrite(os.path.join(dstroot,os.path.basename(im)),halfheadalign)
 
             # cv2.imshow('headalign_vis',limit_img_auto(headalign_vis))
             # cv2.imshow('frame_vis',limit_img_auto(frame_vis))
