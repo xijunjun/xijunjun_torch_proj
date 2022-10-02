@@ -1046,24 +1046,41 @@ if __name__=='__main__':
             param_halfhead_inori_inv=cv2.invertAffineTransform(param_halfhead_inori)
             landmark_in_half=pt_trans(landmarks,param_halfhead_inori)
 
+            ##############构造控制点
+            # get_ctl_pts(small_to_big(calva_croped), small_to_big(calva_seg), small_to_big(calva_mat))
+            # get_ctl_pts(calva_croped, calva_seg, calva_mat)
+            up_cont_pts,down_cont_pts=get_cont_up_and_down(halfhead_mat_3c)
+            ##底部两个关键点
+            calva_mat_bin = img2bin_uint(halfhead_mat_3c)
+            ch,cw,cc=halfhead_mat_3c.shape
+            rct = cv2.boundingRect(calva_mat_bin[:, :, 0])
+            pt_bl = [rct[0], ch]
+            pt_br = [rct[0] + rct[2], ch]
+            Calva_bottom_pts = [pt_bl, pt_br]
 
-            draw_pts(halfhead_mat_3c, list(landmark_in_half), 20, (255, 0, 0), 2)
 
-            draw_pts(headalign_vis, list(land98_in_crop), 20, (255, 0, 0), 2)
-            print(halfhead_crop_rct)
-            cv2.rectangle(headalign_vis, (halfhead_crop_rct[0], halfhead_crop_rct[1]), (halfhead_crop_rct[2], halfhead_crop_rct[3]), (0, 255, 255), 10)
-
-            for j in range(0, 4):
-                cv2.line(frame_vis,tuple(halfhead_quad_inv[j%4]),tuple(halfhead_quad_inv[(j+1)%4]), (0, 0, 255), 6)
+            ##扩张基准点
+            Calva_base_pts=[landmark_in_half[51]]
+            ####构造扩张点
+            Calva_expand_pts=get_expand_pts(Calva_base_pts, up_cont_pts, Calva_bottom_pts)
+            Calva_expand_pts_result = expand_the_pts(Calva_base_pts, Calva_expand_pts)
 
 
-            draw_pts(frame_vis, list(halfhead_quad_inv), 20, (255, 0, 0), 2)
+            # draw_pts(halfhead_mat_3c, list(landmark_in_half), 20, (255, 0, 0), 2)
+            # draw_pts(headalign_vis, list(land98_in_crop), 20, (255, 0, 0), 2)
+            # print(halfhead_crop_rct)
+            # cv2.rectangle(headalign_vis, (halfhead_crop_rct[0], halfhead_crop_rct[1]), (halfhead_crop_rct[2], halfhead_crop_rct[3]), (0, 255, 255), 10)
+            # for j in range(0, 4):
+            #     cv2.line(frame_vis,tuple(halfhead_quad_inv[j%4]),tuple(halfhead_quad_inv[(j+1)%4]), (0, 0, 255), 6)
+            # draw_pts(frame_vis, list(halfhead_quad_inv), 20, (255, 0, 0), 2)
+            draw_pts(halfheadalign, list(merge_pts([Calva_bottom_pts,Calva_base_pts,Calva_expand_pts])), 20, (0, 0,255), 2)
 
-            cv2.imshow('headalign_vis',limit_img_auto(headalign_vis))
-            cv2.imshow('frame_vis',limit_img_auto(frame_vis))
+
+            # cv2.imshow('headalign_vis',limit_img_auto(headalign_vis))
+            # cv2.imshow('frame_vis',limit_img_auto(frame_vis))
             cv2.imshow('halfheadalign',limit_img_auto(halfheadalign))
-            cv2.imshow('halfhead_mat_3c',limit_img_auto(halfhead_mat_3c))
-            cv2.imshow('halfhead_seg_bise',limit_img_auto(halfhead_seg_bise))
+            # cv2.imshow('halfhead_mat_3c',limit_img_auto(halfhead_mat_3c))
+            # cv2.imshow('halfhead_seg_bise',limit_img_auto(halfhead_seg_bise))
 
         if keylist[0]==13:
             continue
