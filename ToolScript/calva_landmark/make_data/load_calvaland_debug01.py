@@ -155,7 +155,6 @@ def get_etou_crop_rct_byland(landmarks,headw):
     h, w, c = headw,headw,3
     landmarksnp=np.array(landmarks,np.int32)
 
-
     stand_etouw=1280
     stand_etouh=960
     stand_etouwh_ratio=1.0*stand_etouw/stand_etouh
@@ -185,7 +184,6 @@ def get_etou_crop_rct_byland(landmarks,headw):
     print('extend_w /extend_h',extend_w ,extend_h)
     print('stand_etouwh_ratio,cur_wh_ratio:',stand_etouwh_ratio,cur_wh_ratio)
 
-
     #哪边小就扩哪边
     if cur_wh_ratio<stand_etouwh_ratio:
         deltaw=(stand_etouwh_ratio-cur_wh_ratio)*extend_h
@@ -194,11 +192,7 @@ def get_etou_crop_rct_byland(landmarks,headw):
     else:
         deltah = (1.0/stand_etouwh_ratio-1.0/cur_wh_ratio)*extend_w
         extended_tly-=deltah
-
     etou_rct=[extended_tlx,extended_tly,extended_brx,bry]
-
-    print('etou_rct:',etou_rct)
-
     etou_rct=list(np.array(etou_rct,np.int32))
 
     return etou_rct,stand_etouh,stand_etouw
