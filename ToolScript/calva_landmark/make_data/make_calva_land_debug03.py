@@ -389,6 +389,8 @@ def get_face_land_rct(det_net,align_net,framein):
 
         landmark_list=[]
         bbox_list=[]
+
+        # bboxes.sort(key=lambda box:(box[2]-box[0])*(box[3]-box[1]))
         for box in bboxes:
             rct = box[0:4].astype(np.int32)
             land5 = box[5:5 + 10].reshape((5, 2)).astype(np.int32)
@@ -1163,6 +1165,8 @@ if __name__=='__main__':
     # srcroot = '/home/tao/mynas/Dataset/FaceEdit/sumiao/'
     # srcroot=r'/home/tao/mynas/Dataset/hairforsr/femalehd'
     srcroot=r'/home/tao/Downloads/image_unsplash'
+    # srcroot=r'/home/tao/Pictures/imtest'
+
     dstroot = '/home/tao/disk1/Dataset/Project/FaceEdit/taobao_sumiao/crop/'
 
     dstroot=r'/home/tao/mynas/Dataset/FaceEdit/image_unsplash_dst'
@@ -1185,6 +1189,10 @@ if __name__=='__main__':
 
         bbox_list, landmark_list = get_face_land_rct(det_net, align_net, image_const)
 
+
+
+
+        landmark_list=[landmark_list[0]]
         frame_vis=np.array(frame)
         for j,landmarks in enumerate(landmark_list):
 

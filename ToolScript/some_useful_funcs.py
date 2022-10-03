@@ -161,6 +161,15 @@ def get_ims(imgpath):
     return imgpathlst
 
 
+def pts2str(pts):
+    pts = list(np.array(pts, np.int32))
+    resstr = ''
+    for pt in pts:
+        resstr += str(pt[0]) + ' ' + str(pt[1]) + ','
+    resstr = resstr.rstrip(',')
+    return resstr
+
+
 def getpath(rootlist,imname):
     for root in rootlist:
         if os.path.exists(os.path.join(root,imname)):

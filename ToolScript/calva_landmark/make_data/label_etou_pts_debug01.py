@@ -638,6 +638,9 @@ def split_cont_by_two_pts(ptlist,pt1,pt2):
     sublist2.extend(ptlist_np[maxind:numpts])
     sublist2.extend(ptlist_np[0:minind])
 
+    if len(sublist2)<1 or len(sublist1)<1:
+        return None,None
+
     # 确定上下
     sub1meany=np.array(sublist1)[:,1].mean()
     sub2meany = np.array(sublist2)[:, 1].mean()
@@ -711,6 +714,9 @@ def get_cont_up_and_down(calva_mat,meank=300):
 
     sublist1, sublist2 = split_cont_by_two_pts(ptlist, ptlist[lind], ptlist[rind])
 
+    if sublist2 is None or sublist1 is None:
+        return None,None
+
     return list(sublist1),list(sublist2)
 
 def get_etou_cont_up_and_down(calva_mat,land,meank=300):
@@ -766,6 +772,9 @@ def get_etou_cont_up_and_down(calva_mat,land,meank=300):
     # cv2.imshow('bottom_mat', limit_img_auto(bottom_mat))
 
     sublist1, sublist2 = split_cont_by_two_pts(ptlist, ptlist[lind], ptlist[rind])
+    if sublist1 is None or sublist1 is None:
+        return  None,None
+
     return list(sublist1),list(sublist2)
 
 def half2full(img):
@@ -1012,7 +1021,7 @@ global global_val
 global global_numetou
 global_etou_pts=[]
 global_val=[0,0,0,0]
-global_numetou=12
+global_numetou=20
 
 
 
@@ -1068,9 +1077,9 @@ def interpolate_pts(isup):
     sublistup, sublistdown = split_cont_by_two_pts(ptlist, ptlist[lind], ptlist[rind])
 
     if isup:
-        intpts=get_portrait_extland(sublistup, 12)
+        intpts=get_portrait_extland(sublistup, global_numetou)
     else:
-        intpts=get_portrait_extland(sublistdown, 12)
+        intpts=get_portrait_extland(sublistdown, global_numetou)
 
     intpts[0]=global_etou_pts[0]
     intpts[-1] = global_etou_pts[-1]
@@ -1155,7 +1164,8 @@ def get_etoupts():
             exit(0)
 
         if key in key_dic['ENTER']:
-            break
+            if global_numetou==len(global_etou_pts):
+                break
 
         visual_ano()
 
@@ -1185,7 +1195,7 @@ if __name__=='__main__':
     # srcroot=r'/home/tao/Downloads/image_unsplash'
     # srcroot=r'/home/tao/Pictures/imupsplash'
     # srcroot = r'/home/tao/Pictures/imtest'
-    srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/ffhq_example'
+    srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/etou_data/ffhq'
 
     dstroot = '/home/tao/disk1/Dataset/Project/FaceEdit/taobao_sumiao/crop/'
     dstroot=r'/home/tao/mynas/Dataset/FaceEdit/image_unsplash_dst'
@@ -1319,11 +1329,14 @@ if __name__=='__main__':
             facemask=halfheadmask-halfhairmask
             facemask=image_1to3c(facemask[:,:,0])
             # etou_up_cont_pts, etou_down_cont_pts = get_cont_up_and_down(facemask, 3)
+            if facemask.sum()<1000:
+                continue
+
             etou_up_cont_pts, etou_down_cont_pts = get_etou_cont_up_and_down(facemask, landmark_in_half, meank=3)
 
             if etou_up_cont_pts is None:
                 continue
-            Calva_etoutop_pts = get_portrait_extland(etou_up_cont_pts, 12)
+            Calva_etoutop_pts = get_portrait_extland(etou_up_cont_pts, 20)
             draw_pts(halfheadalign, list(Calva_etoutop_pts), 10, (0, 255, 255), 5)
 
 
