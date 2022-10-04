@@ -84,8 +84,6 @@ def load_calva_land(txtpath):
     faceland=str2pts(lines[0])
     portait_ext_land = str2pts(lines[1])
     etou_land = str2pts(lines[2])
-
-
     return  faceland,portait_ext_land,etou_land
 
 
@@ -198,8 +196,35 @@ def get_etou_crop_rct_byland(landmarks,headw):
     return etou_rct,stand_etouh,stand_etouw
 
 
+def get_valid_impaths(imroot):
+
+    ims=get_ims(imroot)
+    validims=[]
+    for i, im in enumerate(ims):
+        imkey, ext=get_imkey_ext(im)
+        txtpath=os.path.join(imroot,imkey+'_calvaland.txt')
+        if os.path.exists(txtpath) is False:
+            continue
+        faceland,portait_ext_land,etou_land=load_calva_land(txtpath)
+        if len(list(etou_land))!=20:
+            print(len(list(etou_land)),im)
+            continue
+        validims.append((im,txtpath))
+    return validims
+
+
 if __name__=='__main__':
     srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/etou_data/ffhq'
+    dstroot='/home/tao/disk1/Workspace/TrainResult/eland/testim'
+
+    # validims=get_valid_impaths(srcroot)
+    # for i,tup in enumerate(validims):
+    #     im, txtpath=tup
+    #     print(im, txtpath)
+    #
+    #
+    # exit(0)
+
 
     ims = get_ims(srcroot)
 
@@ -253,10 +278,13 @@ if __name__=='__main__':
         etou_croped= cv2.warpAffine(img, param_etoucroped_inori, (etouw, etouh), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
 
 
-        draw_pts(etou_croped, list(etou_land_croped), 10, (0, 255, 255), 5)
+        # draw_pts(etou_croped, list(etou_land_croped), 10, (0, 255, 255), 5)
+        #
+        # etou_croped=cv2.resize(etou_croped,(128,96))
+        # etou_croped = cv2.resize(etou_croped, (etouw, etouh),cv2.INTER_NEAREST)
 
-        etou_croped=cv2.resize(etou_croped,(128,96))
-        etou_croped = cv2.resize(etou_croped, (etouw, etouh),cv2.INTER_NEAREST)
+        cv2.imwrite(os.path.join(dstroot,os.path.basename(im)),etou_croped)
+
 
         cv2.imshow('etou_croped',limit_img_auto(etou_croped))
 

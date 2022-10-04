@@ -64,23 +64,24 @@ def quad_dim1to2(quad):
 
 def limit_img_auto(imgin):
     img=np.array(imgin)
-    sw=1920*1.0
-    sh=1080*1.0
-    h,w,c=img.shape
-    swhratio=1.0*sw/sh
-    whratio=1.0*w/h
-    # 横向的长图
-    if whratio>swhratio:
-        tw=int(sw)
-        if tw<w:
-            th=int(h*(tw/w))
-            img=cv2.resize(img,(tw,th))
-    else:
-        th=int(sh)
-        if th<h:
-            tw=int(w*(th/h))
-            img=cv2.resize(img,(tw,th))
-    return  img
+    sw = 1920 * 1.2
+    sh = 1080 * 1.2
+    h, w = tuple(list(imgin.shape)[0:2])
+    swhratio = 1.0 * sw / sh
+    whratio = 1.0 * w / h
+    resize_ratio=sh/h
+    if whratio > swhratio:
+        resize_ratio=1.0*sw/w
+    if resize_ratio<1:
+        img=cv2.resize(imgin,None,fx=resize_ratio,fy=resize_ratio)
+    return img
+
+
+def img2tensor(img):
+    img = img.transpose(2, 0, 1)
+    imgtensor = torch.from_numpy(img)
+    imgtensor=imgtensor.unsqueeze(0)
+    return imgtensor
 
 def file_extension(path):
   return os.path.splitext(path)[1]
