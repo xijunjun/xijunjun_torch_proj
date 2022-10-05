@@ -173,7 +173,7 @@ def split_cont_by_two_pts(ptlist,pt1,pt2):
 
     return  sublist_up,sublist_down
 
-def get_cont_up_and_down(calva_mat,meank=300):
+def get_cont_up_and_down_deprecated(calva_mat,meank=300):
 
     h,w,c=calva_mat.shape
     calva_mat_new=np.array(calva_mat)
@@ -193,5 +193,46 @@ def get_cont_up_and_down(calva_mat,meank=300):
     lind=min_dis_ind(cornet_lb, ptlist)
     rind = min_dis_ind(corner_rb, ptlist)
     sublist1, sublist2 = split_cont_by_two_pts(ptlist, ptlist[lind], ptlist[rind])
+
+    return list(sublist1),list(sublist2)
+
+
+
+def get_cont_up_and_down(calva_mat,meank=300):
+
+    h,w,c=calva_mat.shape
+    calva_mat_bin = np.array(calva_mat)
+    bottom_mat=np.array(calva_mat_bin)
+    bottom_mat[0:h - 10, :, :] = 0
+    if bottom_mat[:,:,0].sum()<100:
+        return None,None
+
+    contoursbt, _ = cv2.findContours(bottom_mat[:,:,0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contoursbt.sort(key=lambda c: cv2.contourArea(c), reverse=True)
+    ptlistbt=[]
+    for pt in contoursbt[0]:
+        ptlistbt.append(pt[0])
+
+    contours, _ = cv2.findContours(calva_mat_bin[:,:,0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours.sort(key=lambda c: cv2.contourArea(c), reverse=True)
+    ptlist=[]
+    for pt in contours[0]:
+        ptlist.append(pt[0])
+    ptlist=smo_the_pts(ptlist,meank)
+    ptlist = smo_the_pts(ptlist, meank)
+    # ##########################
+    rct = cv2.boundingRect(calva_mat_bin[:, :, 0])
+    cornet_lb=[rct[0],h]
+    corner_rb=[rct[0] + rct[2],h]
+    cornet_lb=ptlistbt[min_dis_ind(cornet_lb, ptlistbt)]
+    corner_rb = ptlistbt[min_dis_ind(corner_rb, ptlistbt)]
+    # cornet_lb=[0,h]
+    # corner_rb=[w,h]
+    lind=min_dis_ind(cornet_lb, ptlist)
+    rind = min_dis_ind(corner_rb, ptlist)
+    sublist1, sublist2 = split_cont_by_two_pts(ptlist, ptlist[lind], ptlist[rind])
+
+    if sublist2 is None or sublist1 is None:
+        return None,None
 
     return list(sublist1),list(sublist2)
