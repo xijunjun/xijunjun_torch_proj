@@ -62,8 +62,9 @@ def img2tensor(img):
 if __name__ == '__main__':
     # root='/home/tao/disk1/Workspace/TrainResult/eland/testim/'
     root='/home/tao/disk1/Workspace/TrainResult/eland/testim2/'
-    checkptpath='/home/tao/disk1/Workspace/TrainResult/eland/eland01/plate_land_latest.pt'
+    checkptpath='/home/tao/disk1/Workspace/TrainResult/eland/eland112-crop-resume3/plate_land_latest.pt'
 
+    insize=112
 
     torch.set_grad_enabled(False)
     device = 'cuda:1'
@@ -73,7 +74,7 @@ if __name__ == '__main__':
 
     net = load_model(net,checkptpath,False)
     net.eval()
-    net_jit = torch.jit.trace(net, img2tensor(np.zeros((112,112,3),dtype=np.float32)).to(device))
+    net_jit = torch.jit.trace(net, img2tensor(np.zeros((insize,insize,3),dtype=np.float32)).to(device))
     net_jit.save(checkptpath.replace('.pt','_jit.pt'))
 
 
@@ -85,7 +86,7 @@ if __name__ == '__main__':
         img=cv2.imread(impath).astype(np.float32)/255.0
         imgori=cv2.imread(impath)
         # cv2.imshow('img',img)
-        img=cv2.resize(img,(112,112))
+        img=cv2.resize(img,(insize,insize))
 
         img = img.transpose(2, 0, 1)
         img = torch.from_numpy(img).unsqueeze(0)

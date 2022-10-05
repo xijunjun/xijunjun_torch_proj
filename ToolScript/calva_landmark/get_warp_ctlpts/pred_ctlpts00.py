@@ -112,6 +112,22 @@ def get_etou_crop_rct_byland(landmarks,headw):
     return etou_rct,stand_etouh,stand_etouw
 
 
+def get_halfhead_crop_rct(landmarks,headw):
+
+    h, w, c = headw,headw,3
+    calvaw=headw
+    calvah=int(headw*10/16)
+    limit_whratio=1.0*calvaw/calvah
+    calva_bottom_y=int(landmarks[54][1])
+    upy=calva_bottom_y-calvah
+    # half_head_rct=[[0,upy],[headw,calva_bottom_y]]
+    half_head_rct = [0, upy, headw, calva_bottom_y]
+    half_head_rct=np.array(half_head_rct,np.int32)
+    half_headh, half_headw=calvah,calvaw
+
+    return half_head_rct,half_headh,half_headw
+
+
 def img2tensor(img):
     img = img.transpose(2, 0, 1)
     imgtensor = torch.from_numpy(img)
@@ -132,6 +148,84 @@ def pred_etou_land(etou_net,imgin):
     land_pred = land_pred.cpu().numpy()
     etouland = land_pred * 1280
     return np.array(etouland,np.float32)
+
+def get_etou_ctlpts(img,faceland_ori,etou_net):
+    land5_from98 = land98to5(faceland_ori)
+    wparam_ori_to_standhead, wparam_ori_to_standhead_inv = get_standhead_crop_param_targetsize(land5_from98, 2048)
+
+    faceland_standhead = pt_trans(faceland_ori, wparam_ori_to_standhead)
+    #############etou############################
+    etou_crop_rct, etouh, etouw = get_etou_crop_rct_byland(faceland_standhead, 2048)
+    etou_quad_incrop = [[etou_crop_rct[0], etou_crop_rct[1]], [etou_crop_rct[2], etou_crop_rct[1]],
+                        [etou_crop_rct[2], etou_crop_rct[3]], [etou_crop_rct[0], etou_crop_rct[3]]]
+    etou_quad_incrop = np.array(etou_quad_incrop, np.float32)
+    etou_quad_inv = pt_trans(list(etou_quad_incrop), wparam_ori_to_standhead_inv)
+    etou_quad_inv = np.array(etou_quad_inv, np.int32)
+    etoucroped_dst_quad = np.array([[0, 0], [etouw, 0], [etouw, etouh], [0, etouh]])
+    wparam_ori_to_etou = cv2.estimateAffinePartial2D(etou_quad_inv, etoucroped_dst_quad, method=cv2.LMEDS)[0]
+    wparam_ori_to_etou_inv = cv2.invertAffineTransform(wparam_ori_to_etou)
+    img_etou_croped = cv2.warpAffine(img, wparam_ori_to_etou, (etouw, etouh), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
+    etou_land = pred_etou_land(etou_net, img_etou_croped)
+    etou_land = etou_land.reshape(-1, 2)
+    etou_land_inori = pt_trans(list(etou_land), wparam_ori_to_etou_inv)
+
+    return etou_land_inori
+
+
+def get_headout_ctlpts(image,faceland_ori,matnet,bise_net):
+    head_size=2048
+    land5_from98 = land98to5(faceland_ori)
+    wparam_ori_to_standhead, wparam_ori_to_standhead_inv = get_standhead_crop_param_targetsize(land5_from98, 2048)
+    faceland_standhead = pt_trans(faceland_ori, wparam_ori_to_standhead)
+
+    headalign = cv2.warpAffine(image, wparam_ori_to_standhead, (head_size, head_size), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
+    head_mat = get_mat(matnet, headalign)
+    head_seg_bise = pred_seg_bise(bise_net, headalign)
+    head_mat_3c = image_1to3c(head_mat)
+
+    halfhead_crop_rct, half_headh, half_headw = get_halfhead_crop_rct(faceland_standhead, head_size)
+    halfhead_quad_incrop = [[halfhead_crop_rct[0], halfhead_crop_rct[1]], [halfhead_crop_rct[2], halfhead_crop_rct[1]],
+                            [halfhead_crop_rct[2], halfhead_crop_rct[3]], [halfhead_crop_rct[0], halfhead_crop_rct[3]]]
+    halfhead_quad_incrop = np.array(halfhead_quad_incrop, np.float32)
+    halfhead_quad_inv = pt_trans(list(halfhead_quad_incrop), wparam_ori_to_standhead_inv)
+    halfhead_quad_inv = np.array(halfhead_quad_inv, np.int32)
+
+    halfhead_dst_quad = np.array([[0, 0], [half_headw, 0], [half_headw, half_headh], [0, half_headh]])
+    param_halfhead_incrop = cv2.estimateAffinePartial2D(halfhead_quad_incrop, halfhead_dst_quad, method=cv2.LMEDS)[0]
+
+    halfheadalign = cv2.warpAffine(headalign, param_halfhead_incrop, (half_headw, half_headh), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
+    halfhead_mat_3c = cv2.warpAffine(head_mat_3c, param_halfhead_incrop, (half_headw, half_headh), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
+    halfhead_seg_bise = cv2.warpAffine(head_seg_bise, param_halfhead_incrop, (half_headw, half_headh), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
+
+    wparam_ori_to_halfhead = cv2.estimateAffinePartial2D(halfhead_quad_inv, halfhead_dst_quad, method=cv2.LMEDS)[0]
+    wparam_ori_to_halfhead_inv = cv2.invertAffineTransform(wparam_ori_to_halfhead)
+    landmark_in_halfhead = pt_trans(faceland_ori, wparam_ori_to_halfhead )
+
+
+    calva_mat_bin = img2bin_uint(halfhead_mat_3c)
+
+    calva_mat_bin = cv2.erode(calva_mat_bin, kernel=np.ones((19, 19), np.uint8), iterations=2)
+    calva_mat_bin = cv2.dilate(calva_mat_bin, kernel=np.ones((19, 19), np.uint8), iterations=2)
+    calva_mat_bin = cv2.dilate(calva_mat_bin, kernel=np.ones((9, 9), np.uint8), iterations=2)
+    calva_mat_bin = cv2.erode(calva_mat_bin, kernel=np.ones((9, 9), np.uint8), iterations=2)
+
+    up_cont_pts, down_cont_pts = get_cont_up_and_down(calva_mat_bin, 3)
+
+    ch, cw, cc = calva_mat_bin.shape
+    rct = cv2.boundingRect(calva_mat_bin[:, :, 0])
+    pt_bl = [rct[0], ch]
+    pt_br = [rct[0] + rct[2], ch]
+    Calva_bottom_pts = [pt_bl, pt_br]
+
+    ##扩张基准点
+    Calva_base_pts = [landmark_in_halfhead[51]]
+    ####构造扩张点
+    Calva_expand_pts = get_expand_pts(Calva_base_pts, up_cont_pts, Calva_bottom_pts)
+    # Calva_expand_pts_result = expand_the_pts(Calva_base_pts, Calva_expand_pts)
+
+    Calva_expand_pts_inori=pt_trans(Calva_expand_pts ,wparam_ori_to_halfhead_inv)
+
+    return Calva_expand_pts_inori
 
 
 if __name__=='__main__':
@@ -169,7 +263,7 @@ if __name__=='__main__':
         imgvis=np.array(img)
 
         for j,faceland_ori in  enumerate(landmark_list):
-            draw_pts(imgvis, list(faceland_ori), 10, (0, 255, 0), 10)
+
 
             ##########裁剪出单张人头
             land5_from98=land98to5(faceland_ori)
@@ -178,49 +272,22 @@ if __name__=='__main__':
             h,w,c=img_standhead.shape
 
             # print('facealign.shape ',facealign.shape)
-
             # ##########获取单张人头的matting和seg结果
             # head_mat = get_mat(matnet, headalign)
             # head_seg_bise = pred_seg_bise(bise_net, headalign)
             # head_mat_3c = image_1to3c(head_mat)
-
             ##########获取单张人头的关键点
-            faceland_standhead=pt_trans(faceland_ori,wparam_ori_to_standhead)
 
 
-
-            #############etou############################
-            etou_crop_rct, etouh, etouw = get_etou_crop_rct_byland(faceland_standhead, 2048)
-            etou_quad_incrop = [[etou_crop_rct[0], etou_crop_rct[1]], [etou_crop_rct[2], etou_crop_rct[1]],
-                                [etou_crop_rct[2], etou_crop_rct[3]], [etou_crop_rct[0], etou_crop_rct[3]]]
-            etou_quad_incrop = np.array(etou_quad_incrop, np.float32)
-            etou_quad_inv = pt_trans(list(etou_quad_incrop), wparam_ori_to_standhead_inv)
-            etou_quad_inv = np.array(etou_quad_inv, np.int32)
-            etoucroped_dst_quad = np.array([[0, 0], [etouw, 0], [etouw, etouh], [0, etouh]])
-            wparam_ori_to_etou = cv2.estimateAffinePartial2D(etou_quad_inv, etoucroped_dst_quad, method=cv2.LMEDS)[0]
-            wparam_ori_to_etou_inv = cv2.invertAffineTransform(wparam_ori_to_etou)
-            img_etou_croped=cv2.warpAffine(img, wparam_ori_to_etou, (etouw, etouh), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
-
-
-            # cv2.imwrite(os.path.join(dstroot,imname),img_etou_croped)
-
-
-
-            etou_land=pred_etou_land(etou_net,img_etou_croped)
-
-
-            print(etou_land)
-            etou_land=etou_land.reshape(-1, 2)
-            print(etou_land)
-            draw_pts(img_etou_croped, list(etou_land), 10, (0, 0, 255), 10)
-            cv2.imshow('img_etou_croped',limit_img_auto(img_etou_croped))
-
-            etou_land_inori=pt_trans(list(etou_land),wparam_ori_to_etou_inv)
-
-            print(etou_land_inori)
+            etou_land_inori=get_etou_ctlpts(img, faceland_ori,etou_net)
+            headout_land_inori=get_headout_ctlpts(img, faceland_ori, matnet, bise_net)
 
             # etou_land_croped = pt_trans(etou_land, wparam_ori_to_etou)
-            draw_pts(imgvis, list(etou_land_inori), 10, (0, 0, 255), 10)
+
+
+            draw_pts(imgvis, list(faceland_ori), 10, (0, 255, 0), 10)
+            draw_pts(imgvis, list(etou_land_inori), 20, (0, 0, 255), 10)
+            draw_pts(imgvis, list(headout_land_inori), 20, (0, 255, 0), 10)
 
 
         cv2.imshow('img',limit_img_auto(imgvis))

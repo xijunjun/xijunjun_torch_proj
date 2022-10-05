@@ -64,8 +64,11 @@ class PFLDInference(nn.Module):
     def __init__(self):
         super(PFLDInference, self).__init__()
 
-        self.conv1 = nn.Conv2d(
-            3, 64, kernel_size=3, stride=2, padding=1, bias=False)
+        # self.conv0 = nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1, bias=False)
+        # self.conv1 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1, bias=False)
+
+
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
 
@@ -100,6 +103,8 @@ class PFLDInference(nn.Module):
         self.fc = nn.Linear(176, 20 * 2)
 
     def forward(self, x):  # x: 3, 112, 112
+        # x=self.relu (self.conv0(x))
+
         x = self.relu(self.bn1(self.conv1(x)))  # [64, 56, 56]
         x = self.relu(self.bn2(self.conv2(x)))  # [64, 56, 56]
         x = self.conv3_1(x)
@@ -128,6 +133,8 @@ class PFLDInference(nn.Module):
         x3 = x3.view(x1.size(0), -1)
 
         multi_scale = torch.cat([x1, x2, x3], 1)
+
+
         landmarks = self.fc(multi_scale)
 
         # return out1, landmarks

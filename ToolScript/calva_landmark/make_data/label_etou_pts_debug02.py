@@ -1195,7 +1195,10 @@ if __name__=='__main__':
     # srcroot=r'/home/tao/Downloads/image_unsplash'
     # srcroot=r'/home/tao/Pictures/imupsplash'
     # srcroot = r'/home/tao/Pictures/imtest'
-    srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/etou_data/ffhq'
+    # srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/etou_data/ffhq'
+
+    # srcroot = r'/home/tao/disk1/Dataset/Project/FaceEdit/etou_data/ffhq2k'
+    srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/etou_data/pexel_side_face'
 
     dstroot = '/home/tao/disk1/Dataset/Project/FaceEdit/taobao_sumiao/crop/'
     dstroot=r'/home/tao/mynas/Dataset/FaceEdit/image_unsplash_dst'

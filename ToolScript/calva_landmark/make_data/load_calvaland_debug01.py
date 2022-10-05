@@ -200,6 +200,7 @@ def get_etou_crop_rct_byland(landmarks,headw):
 
 if __name__=='__main__':
     srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/etou_data/ffhq'
+    # srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/etou_data/ffhq2k'
 
     ims = get_ims(srcroot)
 

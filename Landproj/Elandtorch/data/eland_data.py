@@ -129,8 +129,12 @@ def get_etou_crop_rct_byland(landmarks,headw):
     # wextend_ratio=1.8
     # hextend_ratio = 1.8
 
-    wextend_ratio=1.2+random.random()*0.8
-    hextend_ratio = 1.2+random.random()*0.8
+    if random.random()<0.6:
+        wextend_ratio=1.8
+        hextend_ratio = 1.8
+    else:
+        wextend_ratio=1.4+random.random()*0.4
+        hextend_ratio = 1.4+random.random()*0.6
 
 
     bry=int(landmarks[54][1])
@@ -184,9 +188,14 @@ def get_crop_param_targetsize(landpts5,targetsize):
 
 
 class ElandDataset(data.Dataset):
-    def __init__(self, datadir, transforms=None):
+    def __init__(self, datadirlist, imgsize=112):
         super(ElandDataset, self).__init__()
-        self.validims = get_valid_impaths(datadir)
+
+        self.validims=[]
+        for datadir in datadirlist:
+            self.validims.extend(get_valid_impaths(datadir))
+        self.imgsize=imgsize
+
 
         # print(self.fns)
 
@@ -219,8 +228,8 @@ class ElandDataset(data.Dataset):
         etou_land_croped=np.array(etou_land_croped,np.float32)
         etou_croped= cv2.warpAffine(img, param_etoucroped_inori, (etouw, etouh), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
 
-        imgsize=112
-        etou_croped=cv2.resize(etou_croped,(imgsize,imgsize))
+        # imgsize=224
+        etou_croped=cv2.resize(etou_croped,(self.imgsize,self.imgsize))
 
         # etou_land_croped=etou_land_croped.T
         etou_land_croped=etou_land_croped.reshape(1,-1)[0]
@@ -269,9 +278,22 @@ def draw_pts(img,ptlist,r,color,thick,wait=0):
 
 if __name__ == '__main__':
 
-    wlfwdataset = ElandDataset(datadir='/home/tao/disk1/Dataset/Project/FaceEdit/etou_data/ffhq')
-    dataloader = DataLoader(wlfwdataset, batch_size=1, shuffle=True, num_workers=0, drop_last=False)
-    for img, landmark in dataloader:
+    # wlfwdataset = ElandDataset(datadir='/home/tao/disk1/Dataset/Project/FaceEdit/etou_data/ffhq')
+    # dataloader = DataLoader(wlfwdataset, batch_size=1, shuffle=True, num_workers=0, drop_last=False)
+    #
+    #
+    datadirlist=[
+        # '/home/tao/disk1/Dataset/Project/FaceEdit/etou_data/ffhq',
+                 '/home/tao/disk1/Dataset/Project/FaceEdit/etou_data/ffhq2k'
+    ]
+
+    wlfwdataset = ElandDataset(datadirlist=datadirlist,imgsize=112)
+    traindata_loader = DataLoader(wlfwdataset, batch_size=8, shuffle=True, num_workers=4, drop_last=True)
+
+    print(len(wlfwdataset))
+    exit(0)
+
+    for img, landmark in traindata_loader:
         print("img shape", img.shape)
         print("landmark size", landmark.size())
         # img=img.asnumpy()
