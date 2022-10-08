@@ -63,7 +63,7 @@ def vis_delaunay(ptsnp,image,trires=None):
 
     for triind in trires:
         for k in range(0,3):
-            cv2.line(bigimg, tuple(ptsnp[triind[k % 3]]), tuple(ptsnp[triind[(k +1)% 3]]), (0, 255, 0), 3)
+            cv2.line(bigimg, tuple(ptsnp[triind[k % 3]]), tuple(ptsnp[triind[(k +1)% 3]]), (0, 255, 0), 5)
     return bigimg,offx, offy
 
 

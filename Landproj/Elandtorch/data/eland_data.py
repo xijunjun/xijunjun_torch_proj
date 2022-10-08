@@ -133,7 +133,7 @@ def get_etou_crop_rct_byland(landmarks,headw):
         wextend_ratio=1.8
         hextend_ratio = 1.8
     else:
-        wextend_ratio=1.4+random.random()*0.4
+        wextend_ratio=1.6+random.random()*0.3
         hextend_ratio = 1.4+random.random()*0.6
 
 

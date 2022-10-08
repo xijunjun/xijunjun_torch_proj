@@ -280,7 +280,8 @@ if __name__=='__main__':
 
     # srcroot = '/home/tao/mynas/Dataset/FaceEdit/sumiao/'
     # srcroot=r'/home/tao/mynas/Dataset/hairforsr/femalehd'
-    srcroot=r'/home/tao/Downloads/image_unsplash'
+    # srcroot=r'/home/tao/Downloads/image_unsplash'
+    srcroot=r'/home/tao/Downloads/unsplash_special'
     # srcroot=r'/home/tao/Pictures/test0'
 
     # srcroot='/home/tao/mynas/Dataset/FaceEdit/sumiao'
@@ -290,10 +291,12 @@ if __name__=='__main__':
     ims = get_ims(srcroot)
     head_size = 2048
 
-    etou_net=torch.jit.load('/home/tao/disk1/Workspace/TrainResult/eland/eland112-crop-resume2/plate_land_latest_jit.pt').to('cpu')
+    etou_net=torch.jit.load('/home/tao/disk1/Workspace/TrainResult/eland/eland112-crop-resume3/plate_land_latest_jit.pt').to('cpu')
+
+    trires=None
 
 
-
+    ims.sort()
     for i, im in enumerate(ims):
 
         print(im)
@@ -347,9 +350,19 @@ if __name__=='__main__':
             # pt_src_list_inv = np.array(merge_pts([Calva_expand_pts_inori,Calva_base_pts,etou_land_inori,Calva_back_stable_pts]), np.int32)
             # pt_dst_list_inv = np.array(merge_pts([Calva_expand_pts_inori_result , Calva_base_pts, etou_land_inori,Calva_back_stable_pts]), np.int32)
 
-            warp_result=warp_the_img(img, pt_src_list_inv, pt_dst_list_inv)
+            if trires is None:
+                trires=get_trires(pt_src_list_inv)
 
-            vistri=vis_delaunay(pt_src_list_inv, imgvis)
+
+            warp_result=warp_the_img(img, pt_src_list_inv, pt_dst_list_inv,trires)
+
+            vistri,offx, offy=vis_delaunay(pt_src_list_inv, imgvis,trires)
+
+            draw_pts(vistri, list(np.array(etou_land_inori)+[offx, offy]), 20, (0, 0, 255), 10)
+            draw_pts(vistri, list(np.array(Calva_expand_pts_inori) + [offx, offy]), 20, (255, 0, 0), 10)
+
+
+
             cv2.imshow('vistri',limit_img_auto(vistri))
 
 
