@@ -137,6 +137,38 @@ def img2bin_uint(imgin):
     img[img>=thres]=255
     return   img
 
+def simplify_mask(maskin):
+
+    contours, h = cv2.findContours(maskin.copy()[:,:,0], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if len(contours)<1:
+        return  None
+
+    contours.sort(key=lambda c: cv2.contourArea(c), reverse=True)
+    # img = cv2.drawContours(maskin.copy(), [contours[0]], -1, (0, 255, 0), 5)
+    img = cv2.drawContours(np.zeros_like(maskin), [contours[0]], -1, (255, 255, 255), -1)
+    return img
+
+
+def get_imkey_ext(imname):
+    imname=os.path.basename(imname)
+    ext='.'+imname.split('.')[-1]
+    imkey=imname.replace(ext,'')
+    return imkey,ext
+
+
+
+def rename_all(srcroot):
+    ims = get_ims(srcroot)
+    for i,im in enumerate(ims):
+
+        imname=os.path.basename(im)
+        imkey,ext=get_imkey_ext(imname)
+
+        os.rename(im,os.path.join(srcroot,'taobao_download_'+str(i).zfill(5)+ext))
+        print(im,os.path.join(srcroot,'taobao_download_'+str(i).zfill(5)+ext))
+
+
+
 
 if __name__=='__main__':
     # cap = cv2.VideoCapture(0)
@@ -147,13 +179,23 @@ if __name__=='__main__':
 
     # srcroot = '/home/tao/mynas/Dataset/FaceEdit/sumiao/'
     # srcroot=r'/home/tao/mynas/Dataset/hairforsr/femalehd'
-    srcroot=r'/home/tao/Downloads/image_unsplash'
+    # srcroot=r'/home/tao/Downloads/image_unsplash'
     # srcroot=r'/home/tao/Pictures/imtest'
 
-    dstroot = '/home/tao/disk1/Dataset/Project/FaceEdit/taobao_sumiao/crop/'
-    dstroot=r'/home/tao/mynas/Dataset/FaceEdit/image_unsplash_dst'
+    # srcroot=r'/home/tao/mynas/Dataset/FaceEdit/sumiao'
+    # srcroot=r'/home/tao/mynas/Dataset/FaceEdit/ffhq'
+    srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/half_head_hair/taobao'
 
+
+    # dstroot = '/home/tao/disk1/Dataset/Project/FaceEdit/taobao_sumiao/crop/'
+    # dstroot=r'/home/tao/mynas/Dataset/FaceEdit/image_unsplash_dst'
     # srcroot='/home/tao/mynas/Dataset/FaceEdit/sumiao'
+
+    dstroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/half_head_hair/taobao_crop'
+
+    # rename_all(srcroot)
+
+    # exit(0)
 
 
     ims = get_ims(srcroot)
@@ -163,6 +205,7 @@ if __name__=='__main__':
 
     for i, im in enumerate(ims):
         imname=os.path.basename(im)
+        imkey, ext = get_imkey_ext(imname)
 
         all_face_rcts = []
         all_face_lands = []
@@ -174,7 +217,12 @@ if __name__=='__main__':
         img=cv2.imread(im)
         imgvis=np.array(img)
 
+
+
         for j,landmarks in enumerate(landmark_list):
+            path_imdst = os.path.join(dstroot, imkey + '_' + str(j) + '.jpg')
+            if os.path.exists(path_imdst) is True:
+                break
 
             frame_vis = np.array(frame)
             ##########裁剪出单张人头
@@ -186,7 +234,7 @@ if __name__=='__main__':
             headalign_vis=np.array(headalign)
             h,w,c=headalign.shape
 
-            print('headalign.shape：',headalign.shape)
+            print(im,' headalign.shape：',headalign.shape)
 
             # print('facealign.shape ',facealign.shape)
 
@@ -234,6 +282,11 @@ if __name__=='__main__':
 
             calva_mat_bin = cv2.dilate(calva_mat_bin, kernel=np.ones((9, 9), np.uint8), iterations=2)
             calva_mat_bin=cv2.erode(calva_mat_bin ,kernel=np.ones((9,9),np.uint8),iterations=2)
+            calva_mat_bin=simplify_mask(calva_mat_bin)
+            if calva_mat_bin is None:
+                continue
+
+
 
             ch,cw,cc=halfhead_mat_3c.shape
             rct = cv2.boundingRect(calva_mat_bin[:, :, 0])
@@ -245,13 +298,33 @@ if __name__=='__main__':
             # pt_tl=list(np.array(pt_tl,np.int32))
             # pt_tl = list(np.array(pt_tl, np.int32))
 
-            cv2.rectangle(halfheadalign ,tuple(pt_tl),tuple(pt_br),(255,0,0),10,1)
 
-            cv2.imshow('halfheadalign ',limit_img_auto(halfheadalign ))
+            path_imdst=os.path.join(dstroot,imkey+'_'+str(j)+'.jpg')
+            path_txtdst=os.path.join(dstroot,imkey+'_'+str(j)+'.txt')
+
+            halfheadalign=cv2.resize(halfheadalign,None,fx=0.5,fy=0.5)
+            pt_tl=np.array(pt_tl)*0.5
+            pt_br=np.array(pt_br)*0.5
+            pt_tl = pt_tl.astype(np.int32)
+            pt_br = pt_br.astype(np.int32)
 
 
-            if cv2.waitKey(0)==27:
-                exit(0)
+            anolines=str(pt_tl[0])+' '+str(pt_tl[1])+','+str(pt_br[0])+' '+str(pt_br[1])
+
+
+            with open(path_txtdst,'w') as f:
+                f.writelines(anolines)
+
+            cv2.imwrite(path_imdst,halfheadalign)
+
+            cv2.rectangle(halfheadalign, tuple(pt_tl), tuple(pt_br), (255, 0, 0), 10, 1)
+
+
+            # cv2.imshow('halfheadalign ',limit_img_auto(halfheadalign ))
+            # if cv2.waitKey(0)==27:
+            #     exit(0)
+
+
 
 
 

@@ -258,6 +258,11 @@ def img2bin_uint(imgin):
     img[img>=thres]=255
     return   img
 
+def get_imkey_ext(imname):
+    imname=os.path.basename(imname)
+    ext='.'+imname.split('.')[-1]
+    imkey=imname.replace(ext,'')
+    return imkey,ext
 
 # ########################################################################################################
 def split_imlist(imlist,numsplit):
