@@ -27,7 +27,46 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 
 
+from network import *
+# from  mbv3_net import *
+
 from warpfuncs_xlib import *
+import torchvision.transforms as transforms
+to_tensor = transforms.ToTensor()
+
+
+def check_keys(model, pretrained_state_dict):
+    ckpt_keys = set(pretrained_state_dict.keys())
+    model_keys = set(model.state_dict().keys())
+    used_pretrained_keys = model_keys & ckpt_keys
+    unused_pretrained_keys = ckpt_keys - model_keys
+    missing_keys = model_keys - ckpt_keys
+    print('Missing keys:{}'.format(len(missing_keys)))
+    print('Unused checkpoint keys:{}'.format(len(unused_pretrained_keys)))
+    print('Used keys:{}'.format(len(used_pretrained_keys)))
+    assert len(used_pretrained_keys) > 0, 'load NONE from pretrained checkpoint'
+    return True
+
+def remove_prefix(state_dict, prefix):
+    ''' Old style model is stored with all names of parameters sharing common prefix 'module.' '''
+    print('remove prefix \'{}\''.format(prefix))
+    f = lambda x: x.split(prefix, 1)[-1] if x.startswith(prefix) else x
+    return {f(key): value for key, value in state_dict.items()}
+
+def load_model(model, pretrained_path, load_to_cpu):
+    print('Loading pretrained model from {}'.format(pretrained_path))
+    if load_to_cpu:
+        pretrained_dict = torch.load(pretrained_path, map_location=lambda storage, loc: storage)
+    else:
+        device = torch.cuda.current_device()
+        pretrained_dict = torch.load(pretrained_path, map_location=lambda storage, loc: storage.cuda(device))
+    if "state_dict" in pretrained_dict.keys():
+        pretrained_dict = remove_prefix(pretrained_dict['state_dict'], 'module.')
+    else:
+        pretrained_dict = remove_prefix(pretrained_dict, 'module.')
+    check_keys(model, pretrained_dict)
+    model.load_state_dict(pretrained_dict, strict=False)
+    return model
 
 
 
@@ -173,29 +212,72 @@ def makedir(dirtp):
     if os.path.exists(dirtp):
         return
     os.makedirs(dirtp)
+
+
+
+def img2tensor(img):
+    img = img.transpose(2, 0, 1)
+    imgtensor = torch.from_numpy(img)
+    imgtensor=imgtensor.unsqueeze(0)
+    return imgtensor
+
+
+def img2tensor(img):
+    img = img.transpose(2, 0, 1)
+    imgtensor = torch.from_numpy(img)
+    imgtensor=imgtensor.unsqueeze(0)
+    return imgtensor
+
+
+def to_pil_image(input):
+    return np.array(transforms.ToPILImage()(input))
+
+def pred_etou_land(etou_net,imgin):
+    device='cpu'
+
+    img=np.array(imgin,np.float32)
+    img=cv2.resize(img,(128*2,128))
+
+    land_pred = etou_net(img2tensor(img).to(device))
+    # land_pred = land_pred.cpu().numpy()
+    # land_pred=(land_pred*255).astype()
+
+    print('land_pred[0]:',land_pred[0].shape,land_pred[0].dtype)
+    return to_pil_image(land_pred[0])
+
 if __name__=='__main__':
     # cap = cv2.VideoCapture(0)
     align_net = init_alignment_model('awing_fan')
     det_net = init_detection_model('retinaface_resnet50', half=False)
-    matnet = init_matting_model()
-    bise_net = init_parsing_model(model_name='bisenet')
-
-    # srcroot = '/home/tao/mynas/Dataset/FaceEdit/sumiao/'
-    # srcroot=r'/home/tao/mynas/Dataset/hairforsr/femalehd'
-    # srcroot=r'/home/tao/Downloads/image_unsplash'
-    # srcroot=r'/home/tao/Pictures/imtest'
-
-    # srcroot=r'/home/tao/mynas/Dataset/FaceEdit/sumiao'
-    # srcroot=r'/home/tao/mynas/Dataset/FaceEdit/ffhq'
-    # srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/half_head_hair/taobao'
-    # srcroot='/home/tao/disk1/Dataset/Project/FaceEdit/half_head_hair/originimage/smith/helen_all'
-    # srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/half_head_hair/hair_croped/sumiao'
-    srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/half_head_hair/hair_croped/portrait'
 
 
-    # dstroot = '/home/tao/disk1/Dataset/Project/FaceEdit/taobao_sumiao/crop/'
-    # dstroot=r'/home/tao/mynas/Dataset/FaceEdit/image_unsplash_dst'
-    # srcroot='/home/tao/mynas/Dataset/FaceEdit/sumiao'
+
+    checkptpath='/home/tao/disk1/Workspace/TrainResult/hairrctseg/segbise_hairrct128-refine1/plate_land_latest.pt'
+    insize=128
+    torch.set_grad_enabled(False)
+    device = 'cuda:1'
+    net = BiSeNetV2()
+    # Step 2: model, criterion, optimizer, scheduler
+    net = net.to(device)
+
+    net = load_model(net,checkptpath,False)
+    net.eval()
+    net_jit = torch.jit.trace(net, img2tensor(np.zeros((insize*2,insize,3),dtype=np.float32)).to(device))
+    net_jit.save(checkptpath.replace('.pt','_jit.pt'))
+
+    checkptpath=checkptpath.replace('.pt','_jit.pt')
+
+    # srcroot='/home/tao/disk1/Dataset/Project/FaceEdit/half_head_hair/taobao'
+    srcroot=r'/home/tao/mynas/Dataset/FaceEdit/sumiao'
+    # srcroot=r'/home/tao/Downloads/portrait'
+
+    torch.set_grad_enabled(False)
+    device = 'cpu'
+    etou_net=torch.jit.load(checkptpath)
+
+    etou_net = etou_net.to(device)
+
+
 
     dstroot=srcroot+'_crop'
 
@@ -246,10 +328,6 @@ if __name__=='__main__':
 
             # print('facealign.shape ',facealign.shape)
 
-            ##########获取单张人头的matting和seg结果
-            head_mat = get_mat(matnet, headalign)
-            head_seg_bise = pred_seg_bise(bise_net, headalign)
-            head_mat_3c = image_1to3c(head_mat)
 
             ##########获取单张人头的关键点
             land98_in_crop=pt_trans(landmarks,warp_param_head)
@@ -271,66 +349,50 @@ if __name__=='__main__':
 
             halfhead_dst_quad = np.array([[0, 0], [half_headw, 0], [half_headw, half_headh], [0, half_headh]])
             param_halfhead_incrop = cv2.estimateAffinePartial2D(halfhead_quad_incrop, halfhead_dst_quad, method=cv2.LMEDS)[0]
-
             halfheadalign = cv2.warpAffine(headalign, param_halfhead_incrop, (half_headw, half_headh), borderMode=cv2.BORDER_CONSTANT, borderValue=(135, 133, 132))
-            halfhead_mat_3c = cv2.warpAffine(head_mat_3c, param_halfhead_incrop, (half_headw, half_headh), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
-            halfhead_seg_bise= cv2.warpAffine(head_seg_bise, param_halfhead_incrop, (half_headw, half_headh), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
+
 
             param_halfhead_inori = cv2.estimateAffinePartial2D(halfhead_quad_inv, halfhead_dst_quad, method=cv2.LMEDS)[0]
             param_halfhead_inori_inv=cv2.invertAffineTransform(param_halfhead_inori)
             landmark_in_half=pt_trans(landmarks,param_halfhead_inori)
 
 
-            calva_mat_bin = img2bin_uint(halfhead_mat_3c)
-            ##############构造控制点
-            # get_ctl_pts(small_to_big(calva_croped), small_to_big(calva_seg), small_to_big(calva_mat))
-            # get_ctl_pts(calva_croped, calva_seg, calva_mat)
-            calva_mat_bin=cv2.erode(calva_mat_bin ,kernel=np.ones((19,19),np.uint8),iterations=2)
-            calva_mat_bin = cv2.dilate(calva_mat_bin, kernel=np.ones((19, 19), np.uint8), iterations=2)
 
-            calva_mat_bin = cv2.dilate(calva_mat_bin, kernel=np.ones((9, 9), np.uint8), iterations=2)
-            calva_mat_bin=cv2.erode(calva_mat_bin ,kernel=np.ones((9,9),np.uint8),iterations=2)
-            calva_mat_bin=simplify_mask(calva_mat_bin)
-            if calva_mat_bin is None:
-                continue
+            # print(land_pred.shape)
 
+            # print(landmark)
 
+            halfheadalign=halfheadalign.astype(np.float32)/255.0
 
-            ch,cw,cc=halfhead_mat_3c.shape
-            rct = cv2.boundingRect(calva_mat_bin[:, :, 0])
-            pt_bl = [rct[0], ch]
-            pt_tl=[rct[0], rct[1]]
-            pt_br = [rct[0] + rct[2], ch]
-            Calva_bottom_pts = [pt_bl, pt_br]
+            mask= pred_etou_land(etou_net, halfheadalign)/255.0
 
-            # pt_tl=list(np.array(pt_tl,np.int32))
-            # pt_tl = list(np.array(pt_tl, np.int32))
+            # print(landmark)
+            # for i in range(0, 2):
+            #     cv2.circle(halfheadalign, (int(landmark[i * 2]), int(landmark[i * 2 + 1])), 30, (0, 1, 1), 10)
+
+            # cv2.rectangle(halfheadalign, (landmark[0],landmark[1]), (landmark[2],landmark[3]), (0, 0, 1), 10, 1)
 
 
-            path_imdst=os.path.join(dstroot,imkey+'_'+str(j)+'.jpg')
-            path_txtdst=os.path.join(dstroot,imkey+'_'+str(j)+'.txt')
+            h,w,c=halfheadalign.shape
 
-            halfheadalign=cv2.resize(halfheadalign,None,fx=0.5,fy=0.5)
-            pt_tl=np.array(pt_tl)*0.5
-            pt_br=np.array(pt_br)*0.5
-            pt_tl = pt_tl.astype(np.int32)
-            pt_br = pt_br.astype(np.int32)
+            print('max:',np.max(mask))
+
+            maskup=cv2.resize(mask,(w,h))
+            maskup=np.expand_dims(maskup,axis=2).repeat(3,axis=2)
 
 
-            anolines=str(pt_tl[0])+' '+str(pt_tl[1])+','+str(pt_br[0])+' '+str(pt_br[1])
+            halfheadalign_color=halfheadalign*(1.0,0.0,1.0)
+
+            halfheadalign=np.clip(halfheadalign_color*maskup+halfheadalign*(1-maskup),0,1)
 
 
-            with open(path_txtdst,'w') as f:
-                f.writelines(anolines)
+            cv2.imshow('halfheadalign ',limit_img_auto(halfheadalign ))
 
-            cv2.imwrite(path_imdst,halfheadalign)
+            print(mask.shape)
+            cv2.imshow('mask',mask)
 
-            cv2.rectangle(halfheadalign, tuple(pt_tl), tuple(pt_br), (255, 0, 0), 10, 1)
-
-
-            # cv2.imshow('halfheadalign ',limit_img_auto(halfheadalign ))
-            # if cv2.waitKey(0)==27:
-            #     exit(0)
+            if cv2.waitKey(0)==27:
+                exit(0)
 
 
 

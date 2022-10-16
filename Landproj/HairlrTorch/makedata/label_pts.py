@@ -147,7 +147,7 @@ def makedir(dirtp):
 
 global visimg
 if __name__=='__main__':
-    srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/half_head_hair/taobao_crop'
+    srcroot=r'/home/tao/disk1/Dataset/Project/FaceEdit/half_head_hair/hair_croped/portrait_crop'
 
     dstroot_good=srcroot+'_good'
     dstroot_bad=srcroot+'_bad'
