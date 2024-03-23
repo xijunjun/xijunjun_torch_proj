@@ -181,7 +181,8 @@ if __name__=='__main__':
                 faceimg, xshift, yshift = crop_pad(frame, exd_rct.reshape(2, 2))
                 cv2.rectangle(frame, (exd_rct[0], exd_rct[1]), (exd_rct[2], exd_rct[3]), (0, 255, 0), 2)
                 cv2.rectangle(frame, (rct[0], rct[1]), (rct[2], rct[3]), (0, 0, 255), 2)
-                landmarks = align_net.get_landmarks(faceimg) + np.array([exd_rct[0], exd_rct[1]])
+                # landmarks = align_net.get_landmarks(faceimg) + np.array([exd_rct[0], exd_rct[1]])
+                landmarks = align_net.get_landmarks(None) + np.array([exd_rct[0], exd_rct[1]])
                 landmarks = np.array(landmarks, np.int)
 
                 for pt in landmarks:
