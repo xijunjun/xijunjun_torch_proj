@@ -260,10 +260,16 @@ def img2bin_uint(imgin):
 
 def get_imkey_ext(imname):
     imname=os.path.basename(imname)
+    
     ext='.'+imname.split('.')[-1]
-    imkey=imname.replace(ext,'')
+    imkey=imname[0:len(imname)-len(ext)]
     return imkey,ext
 
+
+def get_imkey_ext2(imname):
+    imkey,ext=os.path.splitext(im)
+    imkey=os.path.basename(imkey)
+    return imkey,ext
 # ########################################################################################################
 def split_imlist(imlist,numsplit):
     numall=len(imlist)
