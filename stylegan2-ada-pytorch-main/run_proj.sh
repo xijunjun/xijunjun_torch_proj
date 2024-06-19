@@ -1,0 +1,2 @@
+python projector_wp_size_ori.py --outdir=/disks/disk1/Dataset/Project/Stylegan2/HDfaceCropProj --target=/disks/disk1/Dataset/Project/Stylegan2/HDfaceCrop/mmexport1654616372793.jpg \
+    --network=/disks/disk1/Workspace/Project/Pytorch/FaceEdit/stylegan2-ada-pytorch-main/checkpoints/ffhq.pkl
